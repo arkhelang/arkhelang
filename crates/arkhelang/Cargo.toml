@@ -1,0 +1,10 @@
+[package]
+name = "arkhelang"
+version = "0.0.1"
+edition = "2021"
+description = "Arkhe: an ontology language for AI systems. Early development."
+license = "Apache-2.0"
+repository = "https://github.com/arkhelang"
+readme = "README.md"
+keywords = ["ontology", "ai", "agents", "schema", "governance"]
+categories = ["development-tools"]

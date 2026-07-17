@@ -1,0 +1,15 @@
+{
+  "name": "arkhelang",
+  "version": "0.0.1",
+  "description": "Arkhe: an ontology language for AI systems. Early development.",
+  "keywords": ["ontology", "ai", "agents", "schema", "governance"],
+  "license": "Apache-2.0",
+  "author": "Andrew Stevens",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arkhelang/arkhelang.git"
+  },
+  "homepage": "https://github.com/arkhelang",
+  "main": "index.js",
+  "files": ["index.js", "README.md", "LICENSE"]
+}

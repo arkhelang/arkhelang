@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "arkhelang"
+version = "0.0.1"
+description = "Arkhe: an ontology language for AI systems. Early development."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "Andrew Stevens" },
+]
+keywords = ["ontology", "ai", "agents", "schema", "governance"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://github.com/arkhelang"
+Repository = "https://github.com/arkhelang"

@@ -1,0 +1,10 @@
+[package]
+name = "arkhe"
+version = "0.0.1"
+edition = "2021"
+description = "CLI for Arkhe, an ontology language for AI systems. Early development; see the arkhelang project."
+license = "Apache-2.0"
+repository = "https://github.com/arkhelang"
+readme = "README.md"
+keywords = ["ontology", "ai", "agents", "cli", "governance"]
+categories = ["command-line-utilities"]
