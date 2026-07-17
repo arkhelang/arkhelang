@@ -1,0 +1,49 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "action",
+  "name": "model_risk.grant_production_use",
+  "description": "Promote a validated model to production. Requires a current validation and no open findings above low severity anywhere in the model's review history.",
+  "target": {
+    "entity": "model_risk.FinancialModel",
+    "keys": ["model_id"]
+  },
+  "parameters": {},
+  "guard": {
+    "language": "cel",
+    "expression": "target.status == \"validated\" && months_since(target.last_validated) <= 12 && target.assesses_inverse.all(r, r.raised_in_inverse.all(f, f.status != \"open\" || f.severity == \"low\"))",
+    "context": {
+      "target": "model_risk.FinancialModel",
+      "traversals": [
+        "target.assesses_inverse -> list<model_risk.ValidationReview>",
+        "r.raised_in_inverse -> list<model_risk.Finding>"
+      ],
+      "stdlib": ["months_since"]
+    }
+  },
+  "authority": {
+    "role": "model_risk.head_of_model_risk",
+    "claims": { "groups": "mrm/head" }
+  },
+  "approval": null,
+  "audit": {
+    "level": "mandatory",
+    "event": "model_risk.grant_production_use.v1"
+  },
+  "effects": [
+    { "path": "target.status", "value": "production" }
+  ],
+  "refusal": {
+    "shape": {
+      "refused": true,
+      "action": "model_risk.grant_production_use",
+      "failed_clause": "string",
+      "explanation": "string"
+    }
+  },
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:TBD-BY-COMPILER"
+  }
+}

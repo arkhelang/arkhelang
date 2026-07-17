@@ -1,0 +1,280 @@
+# Fixture 1: financial-services model risk management.
+# Hand-written before the validator exists; this file and its expected
+# outputs define conformance for the v0.1 toolchain.
+
+module: model_risk
+version: 0.1.0
+arkhe: "0.1"
+annotations:
+  title: Model Risk Management
+  description: >
+    Governance of financial models across their lifecycle: ownership,
+    validation, findings, change control, and production use. Guards encode
+    the control logic a model risk function enforces; regimes such as
+    SR 11-7 or SS1/23 are context, not dependencies.
+
+roles:
+  model_owner:
+    annotations:
+      description: First-line owner of a model, accountable for its use.
+    claims:
+      groups: "mrm/model-owners"
+  model_validator:
+    annotations:
+      description: Second-line validator; performs independent review.
+    claims:
+      groups: "mrm/validation"
+  model_risk_officer:
+    annotations:
+      description: Second-line officer; approves changes and waivers.
+    claims:
+      groups: "mrm/officers"
+  head_of_model_risk:
+    annotations:
+      description: Accountable executive for model risk.
+    claims:
+      groups: "mrm/head"
+
+entities:
+  TradingDesk:
+    annotations:
+      description: A front-office desk that owns and uses models.
+    keys: [desk_id]
+    properties:
+      desk_id: { type: string }
+      name: { type: string }
+      business_line: { type: string }
+
+  FinancialModel:
+    annotations:
+      description: >
+        A quantitative model used for pricing, risk, capital, or financial
+        crime detection. The unit of governance in this module.
+    keys: [model_id]
+    properties:
+      model_id: { type: string }
+      name: { type: string }
+      purpose:
+        type: enum
+        values: [pricing, risk, capital, aml]
+      tier:
+        type: enum
+        values: [1, 2, 3]
+        annotations:
+          description: Materiality tier; 1 is highest.
+      status:
+        type: state
+        values: [draft, in_validation, validated, production, retired]
+        initial: draft
+      commissioned_date: { type: date }
+      last_validated: { type: date, optional: true }
+
+  ValidationReview:
+    annotations:
+      description: An independent validation exercise against one model.
+    keys: [review_id]
+    properties:
+      review_id: { type: string }
+      scope:
+        type: enum
+        values: [full, targeted]
+      outcome:
+        type: state
+        values: [in_progress, approved, approved_with_conditions, rejected]
+        initial: in_progress
+      review_date: { type: date }
+
+  Finding:
+    annotations:
+      description: A weakness identified during validation.
+    keys: [finding_id]
+    properties:
+      finding_id: { type: string }
+      severity:
+        type: enum
+        values: [low, medium, high]
+      status:
+        type: state
+        values: [open, remediated, waived]
+        initial: open
+      raised_date: { type: date }
+
+  ModelChange:
+    annotations:
+      description: A proposed change to a model under change control.
+    keys: [change_id]
+    properties:
+      change_id: { type: string }
+      category:
+        type: enum
+        values: [recalibration, methodology, data_source]
+      status:
+        type: state
+        values: [proposed, approved, deployed, rejected]
+        initial: proposed
+      submitted_date: { type: date }
+
+  MarketDataFeed:
+    annotations:
+      description: An external data feed a model consumes.
+    keys: [feed_id]
+    properties:
+      feed_id: { type: string }
+      provider: { type: string }
+      asset_class: { type: string }
+      snapshot_frequency: { type: string }
+
+links:
+  owned_by:
+    annotations:
+      description: Each model is owned by exactly one desk.
+    from: FinancialModel
+    to: TradingDesk
+    cardinality: many_to_one
+    properties:
+      since_date: { type: date }
+
+  assesses:
+    annotations:
+      description: A review assesses exactly one model.
+    from: ValidationReview
+    to: FinancialModel
+    cardinality: many_to_one
+
+  raised_in:
+    annotations:
+      description: A finding is raised in exactly one review.
+    from: Finding
+    to: ValidationReview
+    cardinality: many_to_one
+
+  applies_to:
+    annotations:
+      description: A change applies to exactly one model.
+    from: ModelChange
+    to: FinancialModel
+    cardinality: many_to_one
+
+  consumes:
+    annotations:
+      description: Models consume market data feeds.
+    from: FinancialModel
+    to: MarketDataFeed
+    cardinality: many_to_many
+    properties:
+      criticality:
+        type: enum
+        values: [primary, fallback]
+
+actions:
+  submit_for_validation:
+    annotations:
+      description: >
+        Put a model into independent validation. Allowed from draft (initial
+        validation) or production (periodic revalidation).
+    target: FinancialModel
+    guard: target.status == "draft" || target.status == "production"
+    authority: model_owner
+    audit: standard
+    effects:
+      - target.status: in_validation
+
+  record_validation_outcome:
+    annotations:
+      description: Record the outcome of a completed review.
+    target: ValidationReview
+    parameters:
+      outcome:
+        type: enum
+        values: [approved, approved_with_conditions, rejected]
+    guard: target.outcome == "in_progress"
+    authority: model_validator
+    audit: standard
+    effects:
+      - target.outcome: params.outcome
+      - target.assesses.last_validated: target.review_date
+      - target.assesses.status: validated
+
+  approve_model_change:
+    annotations:
+      description: >
+        Approve a proposed change. Tier-1 models escalate to the head of
+        model risk for second approval.
+    target: ModelChange
+    guard: target.status == "proposed" && target.applies_to.status != "retired"
+    authority: model_risk_officer
+    approval:
+      when: target.applies_to.tier == 1
+      authority: head_of_model_risk
+    audit: mandatory
+    effects:
+      - target.status: approved
+
+  grant_production_use:
+    annotations:
+      description: >
+        Promote a validated model to production. Requires a current
+        validation and no open findings above low severity anywhere in the
+        model's review history.
+    target: FinancialModel
+    guard: >
+      target.status == "validated"
+      && months_since(target.last_validated) <= 12
+      && target.assesses_inverse.all(r,
+           r.raised_in_inverse.all(f,
+             f.status != "open" || f.severity == "low"))
+    authority: head_of_model_risk
+    audit: mandatory
+    effects:
+      - target.status: production
+
+  waive_finding:
+    annotations:
+      description: >
+        Waive a finding with justification. High-severity findings cannot
+        be waived; they must be remediated.
+    target: Finding
+    parameters:
+      justification: { type: string }
+    guard: target.status == "open" && target.severity != "high"
+    authority: model_risk_officer
+    audit: mandatory
+    effects:
+      - target.status: waived
+
+  retire_model:
+    annotations:
+      description: Retire a production model.
+    target: FinancialModel
+    parameters:
+      reason: { type: string }
+    guard: target.status == "production"
+    authority: head_of_model_risk
+    audit: mandatory
+    effects:
+      - target.status: retired
+
+invariants:
+  production_models_are_current:
+    annotations:
+      description: No model may sit in production with a stale validation.
+    over: FinancialModel
+    check: >
+      entity.status != "production" || months_since(entity.last_validated) <= 12
+
+  tier1_production_has_primary_feed:
+    annotations:
+      description: Tier-1 production models declare a primary data feed.
+    over: FinancialModel
+    check: >
+      !(entity.tier == 1 && entity.status == "production")
+      || entity.consumes.exists(c, c.criticality == "primary")
+
+  validated_models_have_approved_review:
+    annotations:
+      description: A model marked validated has at least one approved review.
+    over: FinancialModel
+    check: >
+      entity.status != "validated"
+      || entity.assesses_inverse.exists(r,
+           r.outcome == "approved" || r.outcome == "approved_with_conditions")
