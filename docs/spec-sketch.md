@@ -1,6 +1,12 @@
-# Arkhe: v0.1 Spec Sketch
+# Arkhe: Design Sketch (v0.1)
 
-Naming (decided July 2026): **Arkhe** is the language (from ἀρχή: both "first principle" and "rule/authority", which is the metamodel in one word). **arkhelang** is the org and package name everywhere, one word, no dash (the golang pattern). **`arkhe`** is the binary; **`akl`** ships as an alias if wanted (one package, two console scripts). Before first push: confirm the arkhelang GitHub org is free and register it plus PyPI/npm/crates names immediately; check arkhe.dev or arkhelang.org at a registrar; run a TESS/EUIPO search on "arkhe" in software classes (sweeps found no software-class residents; the existing Arkhe brands are fashion, titanium wire, and a visual novel). The "Open Ontology <x>" family was ruled out: live neighbour project at open-ontology.com plus squatted orgs and acronym collisions.
+This document is the working design for Arkhe v0.1. It precedes the formal
+specification; where the two disagree once the spec exists, the spec wins.
+
+Naming: **Arkhe** is the language, from ἀρχή, both "first principle" and
+"rule, authority", which is the metamodel in one word. **arkhelang** is the
+org and package name (one word, the golang pattern). **`arkhe`** is the
+binary; **`akl`** may ship as an alias (one package, two console scripts).
 
 ## Purpose
 
@@ -45,7 +51,7 @@ The IR is part of the spec and lives in the golden files. Everything downstream 
 
 YAML surface syntax → canonical JSON model → tool-contract IR → emitters.
 
-**v0.1 ships exactly four things, deliberately (ship embarrassingly small and fast: spec, validator, IR, one emitter, weeks not quarters):**
+**v0.1 ships exactly four things, deliberately (see ADR 0004):**
 
 1. The **spec** (metamodel JSON Schema + prose + golden files).
 2. The **validator** (`arkhe validate`).
@@ -68,7 +74,7 @@ No execution or write-back. No data storage. No metric/measure definitions (comp
 
 ## Conformance and testing
 
-A golden-file test suite is the spec: example ontologies with expected canonical JSON, tool-contract IR, and emitter outputs for every target. Fixture one is the model-risk domain from the blog post; fixture two is a mining maintenance domain (the second domain is what stops the metamodel overfitting to the first). The flagship module, developed once the language stabilises, is an **AI-estate ontology written in Arkhe**: models, agents, tools, datasets, evaluations, guardrails, incidents, approvals, with governed actions like "promote model to production" guarded on eval results and open findings. Dogfooding as strategy: the first thing the ontology language for AI describes is AI itself, and its OKF projection is documentation an auditor can walk. (Adjacent fragments exist: CycloneDX ML profile, SPDX AI profile, MLCommons Croissant for datasets, model cards. Compose with them as evidence references rather than compete; verify their current state before claiming the gap.) The validator CLI (`arkhe validate`, `arkhe contracts`, `arkhe emit --target=lib` in v0.1; `cedar|jsonschema|okf` and protocol targets join `emit` as they land; `akl` installs as an alias of `arkhe`) is the reference implementation. Property-based tests on the CEL-to-Cedar translation, since that seam is where correctness bugs will live.
+A golden-file test suite is the spec: example ontologies with expected canonical JSON, tool-contract IR, and emitter outputs for every target. Fixture one is a financial-services model-risk domain; fixture two is a mining maintenance domain (the second domain is what stops the metamodel overfitting to the first). The flagship module, developed once the language stabilises, is an **AI-estate ontology written in Arkhe**: models, agents, tools, datasets, evaluations, guardrails, incidents, approvals, with governed actions like "promote model to production" guarded on eval results and open findings. The first thing the ontology language for AI describes is AI itself, and its OKF projection is documentation an auditor can walk. (Adjacent fragments exist: CycloneDX ML profile, SPDX AI profile, MLCommons Croissant for datasets, model cards. The module composes with them as evidence references rather than competing.) The validator CLI (`arkhe validate`, `arkhe contracts`, `arkhe emit --target=lib` in v0.1; `cedar|jsonschema|okf` and protocol targets join `emit` as they land; `akl` installs as an alias of `arkhe`) is the reference implementation. Property-based tests on the CEL-to-Cedar translation, since that seam is where correctness bugs will live.
 
 ## Open questions (the fun ones)
 
