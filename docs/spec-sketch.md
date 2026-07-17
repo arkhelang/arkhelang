@@ -72,8 +72,8 @@ A golden-file test suite is the spec: example ontologies with expected canonical
 
 ## Open questions (the fun ones)
 
-- Actions targeting **links** (approve a `consumes` relationship?) — probably yes, syntax cost is low.
-- **Temporal validity** on links and properties (as-of semantics) — v0.2 at the earliest, but the metamodel should not preclude it.
+- Actions targeting **links** (approve a `consumes` relationship?), probably yes, syntax cost is low.
+- **Temporal validity** on links and properties (as-of semantics), v0.2 at the earliest, but the metamodel should not preclude it.
 - **Effects**: declared postconditions invite verification (did the tool actually do that?). Is a runtime attestation contract in scope for the spec, or a separate document that GATE-style runtimes implement? Leaning: separate document.
 - **LinkML relationship**: embed Arkhe actions as a LinkML extension and inherit their ecosystem, or standalone spec with a LinkML import path? Standalone-with-import keeps the actions semantics unpolluted; worth one prototype each way.
 - **Audit sink contract**: `audit: mandatory` must mean something testable. Minimum: compiled tools emit a structured event schema; where it goes is the runtime's problem.
