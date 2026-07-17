@@ -84,6 +84,17 @@ academically (arXiv 2602.03439). Arkhe's contribution is narrower than any of
 them: a portable, domain-neutral file format for nouns and governed verbs
 together, with thin compilers outward. No first-ever claims are made here.
 
+## Relationship to GATE
+
+Arkhe's author also authors [GATE](https://deterministicagents.ai), an open
+framework for governed agent runtimes. Interoperability with GATE is a goal:
+a GATE-style runtime is a natural consumer of Arkhe's tool contracts, guard
+pre-checks, and audit obligations, and a natural producer of the attestations
+that Arkhe's declared effects invite. Exclusivity is not a goal. Arkhe stays
+runtime-neutral; GATE gets no privileged hooks in the spec, and anything a
+GATE runtime can consume, any other runtime can consume the same way. The
+shared authorship is stated here so readers can weigh it.
+
 ## Name
 
 Arkhe is from ἀρχή (arkhē): both *first principle* and *rule, authority*. One
