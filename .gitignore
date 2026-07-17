@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.egg-info/
+dist/
+.venv/
+
+# Rust
+target/
+Cargo.lock
+
+# Node
+node_modules/
+*.tgz
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
