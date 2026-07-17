@@ -130,6 +130,7 @@ links:
       description: Each model is owned by exactly one desk.
     from: FinancialModel
     to: TradingDesk
+    reverse: models
     cardinality: many_to_one
     properties:
       since_date: { type: date }
@@ -139,6 +140,7 @@ links:
       description: A review assesses exactly one model.
     from: ValidationReview
     to: FinancialModel
+    reverse: reviewed_by
     cardinality: many_to_one
 
   raised_in:
@@ -146,6 +148,7 @@ links:
       description: A finding is raised in exactly one review.
     from: Finding
     to: ValidationReview
+    reverse: findings
     cardinality: many_to_one
 
   applies_to:
@@ -153,6 +156,7 @@ links:
       description: A change applies to exactly one model.
     from: ModelChange
     to: FinancialModel
+    reverse: changes
     cardinality: many_to_one
 
   consumes:
@@ -160,6 +164,7 @@ links:
       description: Models consume market data feeds.
     from: FinancialModel
     to: MarketDataFeed
+    reverse: consumed_by
     cardinality: many_to_many
     properties:
       criticality:
@@ -220,8 +225,8 @@ actions:
     guard: >
       target.status == "validated"
       && months_since(target.last_validated) <= 12
-      && target.assesses_inverse.all(r,
-           r.raised_in_inverse.all(f,
+      && target.reviewed_by.all(r,
+           r.findings.all(f,
              f.status != "open" || f.severity == "low"))
     authority: head_of_model_risk
     audit: mandatory
@@ -276,5 +281,5 @@ invariants:
     over: FinancialModel
     check: >
       entity.status != "validated"
-      || entity.assesses_inverse.exists(r,
+      || entity.reviewed_by.exists(r,
            r.outcome == "approved" || r.outcome == "approved_with_conditions")

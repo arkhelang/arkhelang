@@ -10,12 +10,12 @@
   "parameters": {},
   "guard": {
     "language": "cel",
-    "expression": "target.status == \"validated\" && months_since(target.last_validated) <= 12 && target.assesses_inverse.all(r, r.raised_in_inverse.all(f, f.status != \"open\" || f.severity == \"low\"))",
+    "expression": "target.status == \"validated\" && months_since(target.last_validated) <= 12 && target.reviewed_by.all(r, r.findings.all(f, f.status != \"open\" || f.severity == \"low\"))",
     "context": {
       "target": "model_risk.FinancialModel",
       "traversals": [
-        "target.assesses_inverse -> list<model_risk.ValidationReview>",
-        "r.raised_in_inverse -> list<model_risk.Finding>"
+        "target.reviewed_by -> list<model_risk.ValidationReview> (reverse of assesses)",
+        "r.findings -> list<model_risk.Finding> (reverse of raised_in)"
       ],
       "stdlib": ["months_since"]
     }
@@ -32,6 +32,7 @@
   "effects": [
     { "path": "target.status", "value": "production" }
   ],
+  "write_surface": ["model_risk.FinancialModel"],
   "refusal": {
     "shape": {
       "refused": true,
