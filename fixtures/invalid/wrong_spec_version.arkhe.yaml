@@ -1,0 +1,27 @@
+# Invalid: The arkhe field pins the spec version this schema accepts.
+module: invalid_case
+version: 0.1.0
+arkhe: '0.9'
+roles:
+  operator: {}
+entities:
+  Widget:
+    keys:
+    - widget_id
+    properties:
+      widget_id:
+        type: string
+      status:
+        type: state
+        values:
+        - new
+        - active
+        initial: new
+actions:
+  activate:
+    target: Widget
+    guard: target.status == "new"
+    authority: operator
+    audit: standard
+    effects:
+    - target.status: active

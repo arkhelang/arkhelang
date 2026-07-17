@@ -1,0 +1,49 @@
+# Each module in this directory must FAIL structural validation.
+# A validator that accepts any of them is nonconformant.
+arkhe: '0.1'
+cases:
+- file: state_without_initial.arkhe.yaml
+  reason: A state property must declare an initial value.
+  error_at: entities/Widget/properties/status
+- file: action_without_guard.arkhe.yaml
+  reason: Every action must declare a guard.
+  error_at: actions/activate
+- file: bad_audit_level.arkhe.yaml
+  reason: Audit level must be none, standard, or mandatory.
+  error_at: actions/activate/audit
+- file: bad_cardinality.arkhe.yaml
+  reason: Cardinality must be a declared value.
+  error_at: links/near/cardinality
+- file: lowercase_entity_name.arkhe.yaml
+  reason: Entity type names are UpperCamelCase.
+  error_at: entities
+- file: effect_beyond_one_hop.arkhe.yaml
+  reason: Effect paths reach at most one hop from the target (ADR 0005).
+  error_at: actions/activate/effects/0
+- file: effect_off_target.arkhe.yaml
+  reason: Effect paths start at the target.
+  error_at: actions/activate/effects/0
+- file: wrong_spec_version.arkhe.yaml
+  reason: The arkhe field pins the spec version this schema accepts.
+  error_at: arkhe
+- file: values_on_scalar_type.arkhe.yaml
+  reason: Only enum and state properties carry values.
+  error_at: entities/Widget/properties/widget_id
+- file: initial_on_plain_enum.arkhe.yaml
+  reason: initial belongs to state, not enum; the distinction is the point.
+  error_at: entities/Widget/properties/kind
+- file: state_typed_parameter.arkhe.yaml
+  reason: Lifecycle state is entity-only; parameters may not declare it.
+  error_at: actions/activate/parameters/st
+- file: state_typed_link_property.arkhe.yaml
+  reason: Lifecycle state is entity-only; link properties may not declare it.
+  error_at: links/near/properties/phase
+- file: duplicate_enum_values.arkhe.yaml
+  reason: Enum and state values are unique.
+  error_at: entities/Widget/properties/kind/values
+- file: duplicate_keys.arkhe.yaml
+  reason: Key components are unique.
+  error_at: entities/Widget/keys
+- file: unpinned_import_version.arkhe.yaml
+  reason: Imports pin exact versions.
+  error_at: imports/0/version

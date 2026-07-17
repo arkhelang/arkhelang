@@ -1,0 +1,33 @@
+# Invalid: Lifecycle state is entity-only; parameters may not declare it.
+module: invalid_case
+version: 0.1.0
+arkhe: '0.1'
+roles:
+  operator: {}
+entities:
+  Widget:
+    keys:
+    - widget_id
+    properties:
+      widget_id:
+        type: string
+      status:
+        type: state
+        values:
+        - new
+        - active
+        initial: new
+actions:
+  activate:
+    target: Widget
+    guard: target.status == "new"
+    authority: operator
+    audit: standard
+    effects:
+    - target.status: active
+    parameters:
+      st:
+        type: state
+        values:
+        - a
+        initial: a

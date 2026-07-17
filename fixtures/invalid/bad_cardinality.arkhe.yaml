@@ -1,0 +1,32 @@
+# Invalid: Cardinality must be a declared value.
+module: invalid_case
+version: 0.1.0
+arkhe: '0.1'
+roles:
+  operator: {}
+entities:
+  Widget:
+    keys:
+    - widget_id
+    properties:
+      widget_id:
+        type: string
+      status:
+        type: state
+        values:
+        - new
+        - active
+        initial: new
+actions:
+  activate:
+    target: Widget
+    guard: target.status == "new"
+    authority: operator
+    audit: standard
+    effects:
+    - target.status: active
+links:
+  near:
+    from: Widget
+    to: Widget
+    cardinality: many
