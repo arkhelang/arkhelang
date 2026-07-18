@@ -3,7 +3,7 @@
 Early development. See https://github.com/arkhelang
 """
 
-__version__ = "0.1.0.dev1"
+__version__ = "0.1.0"
 
 from .validate import validate as validate_module  # noqa: F401
 from .validate import validate_file  # noqa: F401
