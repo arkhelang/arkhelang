@@ -22,6 +22,8 @@ class Finding:
     code: str
     path: str
     message: str
+    line: int | None = None
+    column: int | None = None
 
 
 @dataclass
@@ -36,6 +38,46 @@ class Result:
         return json.dumps(
             {"ok": self.ok, "findings": [asdict(f) for f in self.findings]}, indent=2
         )
+
+
+def _line_index(text: str) -> dict[tuple, tuple[int, int]]:
+    """Map document paths to 1-based (line, column) source positions."""
+    try:
+        root = yaml.compose(text, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        return {}
+    index: dict[tuple, tuple[int, int]] = {}
+
+    def walk(node, path: tuple):
+        index[path] = (node.start_mark.line + 1, node.start_mark.column + 1)
+        if isinstance(node, yaml.MappingNode):
+            for key_node, value_node in node.value:
+                walk(value_node, path + (str(key_node.value),))
+                # the key's own mark reads better for "missing field" findings
+                index[path + (str(key_node.value),)] = (
+                    key_node.start_mark.line + 1, key_node.start_mark.column + 1)
+        elif isinstance(node, yaml.SequenceNode):
+            for i, item in enumerate(node.value):
+                walk(item, path + (str(i),))
+
+    if root is not None:
+        walk(root, ())
+    return index
+
+
+def _locate(findings: list[Finding], index: dict) -> None:
+    """Attach the closest known source position to each finding."""
+    if not index:
+        return
+    for f in findings:
+        if f.path in ("(root)", "(file)"):
+            f.line, f.column = index.get((), (None, None))
+            continue
+        segs = tuple(f.path.split("/"))
+        while segs and segs not in index:
+            segs = segs[:-1]
+        if segs in index:
+            f.line, f.column = index[segs]
 
 
 def _schema() -> dict:
@@ -64,14 +106,36 @@ _StrictLoader.add_constructor(
 
 def validate_file(path: str | Path) -> Result:
     try:
-        doc = yaml.load(Path(path).read_text(), Loader=_StrictLoader)
+        text = Path(path).read_text()
+        doc = yaml.load(text, Loader=_StrictLoader)
     except yaml.YAMLError as exc:
         return Result([Finding("yaml", "(file)", f"not parseable as YAML: {exc}")])
     except UnicodeDecodeError as exc:
         return Result([Finding("yaml", "(file)", f"not readable as UTF-8 text: {exc}")])
     if not isinstance(doc, dict):
         return Result([Finding("yaml", "(file)", "document is not a mapping")])
-    return validate(doc)
+    result = validate(doc)
+    _locate(result.findings, _line_index(text))
+    return result
+
+
+def _clarify(err) -> str:
+    """Reword the clumsiest jsonschema messages; pass others through."""
+    if err.validator == "required":
+        missing = ", ".join(f"'{p}'" for p in err.validator_value if p not in err.instance)
+        return f"missing required field {missing}"
+    if err.validator == "additionalProperties":
+        known = set(err.schema.get("properties", {}))
+        unknown = [k for k in err.instance if k not in known]
+        if unknown:
+            return "unknown field " + ", ".join(f"'{k}'" for k in unknown)
+    if err.validator == "const" and list(err.absolute_path)[-1:] == ["arkhe"]:
+        return f"this validator implements Arkhe spec '{err.validator_value}'; " \
+               f"the module declares '{err.instance}'"
+    if err.validator == "enum":
+        allowed = ", ".join(map(str, err.validator_value))
+        return f"'{err.instance}' is not one of: {allowed}"
+    return err.message
 
 
 def validate(doc: dict) -> Result:
@@ -80,7 +144,7 @@ def validate(doc: dict) -> Result:
     validator = Draft202012Validator(_schema())
     for err in sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path)):
         findings.append(Finding(
-            "struct", "/".join(map(str, err.absolute_path)) or "(root)", err.message))
+            "struct", "/".join(map(str, err.absolute_path)) or "(root)", _clarify(err)))
     if findings:
         return Result(findings)  # semantic checks need a well-formed document
 
