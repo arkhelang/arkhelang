@@ -62,6 +62,7 @@ YAML surface syntax → canonical JSON model → tool-contract IR → emitters.
 
 - **Language: stdlib expansion.** v0.1 ships a closed three-function stdlib (ADR 0005); v0.2 grows it deliberately, by ADR.
 - **Language: ordering semantics.** An ordering concept for collections so guards can express "the latest review" (deferred by ADR 0005).
+- **IR: resolved types on effects.** v0.1 effect entries carry path and value only, so emitters must join against the target's read contract to type-check writes. Proposed fix: inline a type block on each effect entry (mirroring parameter declarations: `type`, and `values` for enum and state destinations) so every emitter stops reimplementing the same join.
 - **Cedar schema + policies.** Entities/actions to Cedar schema; guards+authority+approval to policies. We do not evaluate policy, ever; Cedar does.
 - **JSON Schema / Pydantic models.** For pipeline and application code.
 - **OKF bundle (Open Knowledge Format).** The knowledge projection for LLM consumption: one concept file per entity, link, and action type; frontmatter from annotations; property tables in the body; markdown links mirroring link types; guards rendered readably with rationale. Always generated, never hand-edited; regenerates on every ontology change; OKF's visualizer doubles as the docs site. Division of labour: the IR is what an agent may do, the OKF bundle is what an agent should know, one ontology behind both. (OKF is v0.1, June 2026, Google-published; markdown-plus-frontmatter, so the downside if it stalls is a good docs generator.)

@@ -1,0 +1,38 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "read",
+  "name": "model_risk.TradingDesk.get",
+  "target": {
+    "entity": "model_risk.TradingDesk",
+    "keys": [
+      "desk_id"
+    ]
+  },
+  "properties": {
+    "desk_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "business_line": {
+      "type": "string"
+    }
+  },
+  "traversals": [
+    {
+      "path": "models",
+      "link": "model_risk.owned_by",
+      "direction": "reverse",
+      "to": "model_risk.FinancialModel",
+      "cardinality": "many_to_one",
+      "many": true
+    }
+  ],
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

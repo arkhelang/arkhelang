@@ -48,7 +48,7 @@ class GuardIssue:
 class GuardReport:
     issues: list[GuardIssue]
     stdlib_used: set[str]
-    traversals: list[str]
+    traversals: list[dict]
 
     @property
     def ok(self) -> bool:
@@ -61,6 +61,19 @@ class _Binding:
     entity: str | None = None
     via_link: object = None   # model.Link or None
     depth: int = 0
+    is_many: bool = False
+
+
+def _hop_is_many(link, traversal_name: str) -> bool:
+    """Whether traversing `traversal_name` yields a collection."""
+    forward = traversal_name == link.name
+    if link.cardinality == "one_to_one":
+        return False
+    if link.cardinality == "many_to_one":
+        return not forward
+    if link.cardinality == "one_to_many":
+        return forward
+    return True  # many_to_many
 
 
 class _Scope:
@@ -106,7 +119,7 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
             params: dict | None = None) -> GuardReport:
     issues: list[GuardIssue] = []
     stdlib_used: set[str] = set()
-    traversals: list[str] = []
+    traversals: list[dict] = []
 
     try:
         tree = _ENV.compile(expression)
@@ -138,7 +151,8 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
                 return None
             return _Binding(_OPAQUE)
         current, via_link, depth = binding.entity, binding.via_link, binding.depth
-        for seg in rest:
+        is_many = binding.is_many
+        for i, seg in enumerate(rest):
             if current is None:
                 issues.append(GuardIssue(
                     "guard-unknown-name",
@@ -152,7 +166,15 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
             elif seg in info:
                 depth += 1
                 far, link = info[seg]
-                traversals.append(f"{current}.{seg} -> {far}")
+                hop_many = _hop_is_many(link, seg)
+                is_many = is_many or hop_many
+                traversals.append({
+                    "path": ".".join([head] + rest[: i + 1]),
+                    "link": link.name,
+                    "direction": "forward" if seg == link.name else "reverse",
+                    "to": far,
+                    "many": hop_many,
+                })
                 if depth > 2:
                     issues.append(GuardIssue(
                         "guard-traversal-depth",
@@ -164,7 +186,7 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
                     "guard-unknown-name",
                     f"'{seg}' is neither a property nor a traversal of {current}"))
                 return None
-        return _Binding(_ENTITY, current, via_link, depth)
+        return _Binding(_ENTITY, current, via_link, depth, is_many)
 
     def collect_path(node) -> list[str] | None:
         """member_dot / string-literal member_index chains -> dotted path."""
@@ -226,6 +248,12 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
                 path = collect_path(base_node)
                 if path is not None:
                     resolved = resolve_path(path, scope)
+                    if (resolved is not None and resolved.kind == _ENTITY
+                            and not resolved.is_many):
+                        issues.append(GuardIssue(
+                            "guard-macro-base",
+                            f"'.{mname}()' requires a collection; "
+                            f"'{'.'.join(path)}' yields a single value"))
                 else:
                     # Base is itself a macro/method result (or unanalyzable):
                     # walk it for its own issues, then bind opaquely.
@@ -233,8 +261,15 @@ def analyze(expression: str, module: Module, root_var: str, root_entity: str,
                     resolved = _Binding(_OPAQUE)
                 inner = _Scope(scope.bindings)
                 # On failed resolution bind opaquely too, so one root cause
-                # does not cascade into unknown-variable noise.
-                inner.bindings[bound or "_"] = resolved if resolved else _Binding(_OPAQUE)
+                # does not cascade into unknown-variable noise. The bound
+                # variable is one ELEMENT of the collection, never a
+                # collection itself.
+                if resolved and resolved.kind == _ENTITY:
+                    element = _Binding(_ENTITY, resolved.entity,
+                                       resolved.via_link, resolved.depth, False)
+                else:
+                    element = _Binding(_OPAQUE)
+                inner.bindings[bound or "_"] = element
                 walk(arg_children[1], inner)
                 return
             for child in node.children:

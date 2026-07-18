@@ -5,7 +5,9 @@
   "description": "Promote a validated model to production. Requires a current validation and no open findings above low severity anywhere in the model's review history.",
   "target": {
     "entity": "model_risk.FinancialModel",
-    "keys": ["model_id"]
+    "keys": [
+      "model_id"
+    ]
   },
   "parameters": {},
   "guard": {
@@ -14,15 +16,31 @@
     "context": {
       "target": "model_risk.FinancialModel",
       "traversals": [
-        "target.reviewed_by -> list<model_risk.ValidationReview> (reverse of assesses)",
-        "r.findings -> list<model_risk.Finding> (reverse of raised_in)"
+        {
+          "path": "target.reviewed_by",
+          "link": "model_risk.assesses",
+          "direction": "reverse",
+          "to": "model_risk.ValidationReview",
+          "many": true
+        },
+        {
+          "path": "r.findings",
+          "link": "model_risk.raised_in",
+          "direction": "reverse",
+          "to": "model_risk.Finding",
+          "many": true
+        }
       ],
-      "stdlib": ["months_since"]
+      "stdlib": [
+        "months_since"
+      ]
     }
   },
   "authority": {
     "role": "model_risk.head_of_model_risk",
-    "claims": { "groups": "mrm/head" }
+    "claims": {
+      "groups": "mrm/head"
+    }
   },
   "approval": null,
   "audit": {
@@ -30,9 +48,14 @@
     "event": "model_risk.grant_production_use.v1"
   },
   "effects": [
-    { "path": "target.status", "value": "production" }
+    {
+      "path": "target.status",
+      "value": "production"
+    }
   ],
-  "write_surface": ["model_risk.FinancialModel"],
+  "write_surface": [
+    "model_risk.FinancialModel"
+  ],
   "refusal": {
     "shape": {
       "refused": true,
@@ -45,6 +68,6 @@
     "module": "model_risk",
     "module_version": "0.1.0",
     "arkhe_version": "0.1",
-    "source_hash": "sha256:TBD-BY-COMPILER"
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
   }
 }

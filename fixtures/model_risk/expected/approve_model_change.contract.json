@@ -1,0 +1,72 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "action",
+  "name": "model_risk.approve_model_change",
+  "description": "Approve a proposed change. Tier-1 models escalate to the head of model risk for second approval.",
+  "target": {
+    "entity": "model_risk.ModelChange",
+    "keys": [
+      "change_id"
+    ]
+  },
+  "parameters": {},
+  "guard": {
+    "language": "cel",
+    "expression": "target.status == \"proposed\" && target.applies_to.status != \"retired\"",
+    "context": {
+      "target": "model_risk.ModelChange",
+      "traversals": [
+        {
+          "path": "target.applies_to",
+          "link": "model_risk.applies_to",
+          "direction": "forward",
+          "to": "model_risk.FinancialModel",
+          "many": false
+        }
+      ],
+      "stdlib": []
+    }
+  },
+  "authority": {
+    "role": "model_risk.model_risk_officer",
+    "claims": {
+      "groups": "mrm/officers"
+    }
+  },
+  "approval": {
+    "when": "target.applies_to.tier == 1",
+    "authority": {
+      "role": "model_risk.head_of_model_risk",
+      "claims": {
+        "groups": "mrm/head"
+      }
+    }
+  },
+  "audit": {
+    "level": "mandatory",
+    "event": "model_risk.approve_model_change.v1"
+  },
+  "effects": [
+    {
+      "path": "target.status",
+      "value": "approved"
+    }
+  ],
+  "write_surface": [
+    "model_risk.ModelChange"
+  ],
+  "refusal": {
+    "shape": {
+      "refused": true,
+      "action": "model_risk.approve_model_change",
+      "failed_clause": "string",
+      "explanation": "string"
+    }
+  },
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

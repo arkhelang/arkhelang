@@ -61,6 +61,10 @@ SEMANTIC_CASES = {
     "effect-cardinality": lambda d: d["actions"]["submit_for_validation"].update(
         {"target": "TradingDesk", "guard": 'target.name != ""',
          "effects": [{"target.models.status": "draft"}]}),
+    "effect-value-optional-param": lambda d: d["actions"]["waive_finding"].update(
+        {"parameters": {"justification": {"type": "string"},
+                        "sev": {"type": "enum", "values": ["low"], "optional": True}},
+         "effects": [{"target.severity": "params.sev"}]}),
 }
 
 GUARD_CASES = {
@@ -81,17 +85,26 @@ GUARD_CASES = {
         {"guard": "target.reviewed_by.exists(r)"}),
     "guard-syntax": lambda d: d["actions"]["retire_model"].update(
         {"guard": "target.status == =="}),
+    "guard-macro-base": lambda d: d["invariants"].update(
+        {"bad": {"over": "FinancialModel",
+                 "check": 'entity.owned_by.all(d, d.name != "")'}}),
 }
+
+
+def _expected_code(name: str) -> str:
+    for suffix in ("-bare-fn", "-bracket", "-optional-param"):
+        name = name.split(suffix)[0]
+    return name
 
 
 @pytest.mark.parametrize("code,mutate", SEMANTIC_CASES.items(), ids=SEMANTIC_CASES.keys())
 def test_semantic_negatives(base, code, mutate):
-    expect(base, code, mutate)
+    expect(base, _expected_code(code), mutate)
 
 
 @pytest.mark.parametrize("name,mutate", GUARD_CASES.items(), ids=GUARD_CASES.keys())
 def test_guard_negatives(base, name, mutate):
-    expect(base, name.split("-bare-fn")[0].split("-bracket")[0], mutate)
+    expect(base, _expected_code(name), mutate)
 
 
 def test_link_property_collision(base):

@@ -1,0 +1,60 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "action",
+  "name": "model_risk.waive_finding",
+  "description": "Waive a finding with justification. High-severity findings cannot be waived; they must be remediated.",
+  "target": {
+    "entity": "model_risk.Finding",
+    "keys": [
+      "finding_id"
+    ]
+  },
+  "parameters": {
+    "justification": {
+      "type": "string"
+    }
+  },
+  "guard": {
+    "language": "cel",
+    "expression": "target.status == \"open\" && target.severity != \"high\"",
+    "context": {
+      "target": "model_risk.Finding",
+      "traversals": [],
+      "stdlib": []
+    }
+  },
+  "authority": {
+    "role": "model_risk.model_risk_officer",
+    "claims": {
+      "groups": "mrm/officers"
+    }
+  },
+  "approval": null,
+  "audit": {
+    "level": "mandatory",
+    "event": "model_risk.waive_finding.v1"
+  },
+  "effects": [
+    {
+      "path": "target.status",
+      "value": "waived"
+    }
+  ],
+  "write_surface": [
+    "model_risk.Finding"
+  ],
+  "refusal": {
+    "shape": {
+      "refused": true,
+      "action": "model_risk.waive_finding",
+      "failed_clause": "string",
+      "explanation": "string"
+    }
+  },
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

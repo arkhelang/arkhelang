@@ -302,6 +302,11 @@ def _effect(m: model.Module, a: model.Action, target: model.Entity,
         if param is None:
             f.append(Finding("effect-value", where,
                              f"'{value}' is not a declared parameter"))
+        elif param.optional:
+            f.append(Finding(
+                "effect-value", where,
+                f"optional parameter '{pname}' may not drive an effect; "
+                f"the write would be undefined when it is omitted"))
         elif closed and (param.type != "enum"
                          or not set(param.values or []) <= set(prop.values or [])):
             f.append(Finding(

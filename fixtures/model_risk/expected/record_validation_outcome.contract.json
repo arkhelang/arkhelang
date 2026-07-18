@@ -1,0 +1,74 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "action",
+  "name": "model_risk.record_validation_outcome",
+  "description": "Record the outcome of a completed review.",
+  "target": {
+    "entity": "model_risk.ValidationReview",
+    "keys": [
+      "review_id"
+    ]
+  },
+  "parameters": {
+    "outcome": {
+      "type": "enum",
+      "values": [
+        "approved",
+        "approved_with_conditions",
+        "rejected"
+      ]
+    }
+  },
+  "guard": {
+    "language": "cel",
+    "expression": "target.outcome == \"in_progress\"",
+    "context": {
+      "target": "model_risk.ValidationReview",
+      "traversals": [],
+      "stdlib": []
+    }
+  },
+  "authority": {
+    "role": "model_risk.model_validator",
+    "claims": {
+      "groups": "mrm/validation"
+    }
+  },
+  "approval": null,
+  "audit": {
+    "level": "standard",
+    "event": "model_risk.record_validation_outcome.v1"
+  },
+  "effects": [
+    {
+      "path": "target.outcome",
+      "value": "params.outcome"
+    },
+    {
+      "path": "target.assesses.last_validated",
+      "value": "target.review_date"
+    },
+    {
+      "path": "target.assesses.status",
+      "value": "validated"
+    }
+  ],
+  "write_surface": [
+    "model_risk.FinancialModel",
+    "model_risk.ValidationReview"
+  ],
+  "refusal": {
+    "shape": {
+      "refused": true,
+      "action": "model_risk.record_validation_outcome",
+      "failed_clause": "string",
+      "explanation": "string"
+    }
+  },
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

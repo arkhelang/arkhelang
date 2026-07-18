@@ -1,0 +1,93 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "read",
+  "name": "model_risk.FinancialModel.get",
+  "target": {
+    "entity": "model_risk.FinancialModel",
+    "keys": [
+      "model_id"
+    ]
+  },
+  "properties": {
+    "model_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "enum",
+      "values": [
+        "pricing",
+        "risk",
+        "capital",
+        "aml"
+      ]
+    },
+    "tier": {
+      "type": "enum",
+      "values": [
+        1,
+        2,
+        3
+      ]
+    },
+    "status": {
+      "type": "state",
+      "values": [
+        "draft",
+        "in_validation",
+        "validated",
+        "production",
+        "retired"
+      ]
+    },
+    "commissioned_date": {
+      "type": "date"
+    },
+    "last_validated": {
+      "type": "date",
+      "optional": true
+    }
+  },
+  "traversals": [
+    {
+      "path": "changes",
+      "link": "model_risk.applies_to",
+      "direction": "reverse",
+      "to": "model_risk.ModelChange",
+      "cardinality": "many_to_one",
+      "many": true
+    },
+    {
+      "path": "consumes",
+      "link": "model_risk.consumes",
+      "direction": "forward",
+      "to": "model_risk.MarketDataFeed",
+      "cardinality": "many_to_many",
+      "many": true
+    },
+    {
+      "path": "owned_by",
+      "link": "model_risk.owned_by",
+      "direction": "forward",
+      "to": "model_risk.TradingDesk",
+      "cardinality": "many_to_one",
+      "many": false
+    },
+    {
+      "path": "reviewed_by",
+      "link": "model_risk.assesses",
+      "direction": "reverse",
+      "to": "model_risk.ValidationReview",
+      "cardinality": "many_to_one",
+      "many": true
+    }
+  ],
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

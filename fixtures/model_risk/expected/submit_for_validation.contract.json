@@ -1,0 +1,56 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "action",
+  "name": "model_risk.submit_for_validation",
+  "description": "Put a model into independent validation. Allowed from draft (initial validation) or production (periodic revalidation).",
+  "target": {
+    "entity": "model_risk.FinancialModel",
+    "keys": [
+      "model_id"
+    ]
+  },
+  "parameters": {},
+  "guard": {
+    "language": "cel",
+    "expression": "target.status == \"draft\" || target.status == \"production\"",
+    "context": {
+      "target": "model_risk.FinancialModel",
+      "traversals": [],
+      "stdlib": []
+    }
+  },
+  "authority": {
+    "role": "model_risk.model_owner",
+    "claims": {
+      "groups": "mrm/model-owners"
+    }
+  },
+  "approval": null,
+  "audit": {
+    "level": "standard",
+    "event": "model_risk.submit_for_validation.v1"
+  },
+  "effects": [
+    {
+      "path": "target.status",
+      "value": "in_validation"
+    }
+  ],
+  "write_surface": [
+    "model_risk.FinancialModel"
+  ],
+  "refusal": {
+    "shape": {
+      "refused": true,
+      "action": "model_risk.submit_for_validation",
+      "failed_clause": "string",
+      "explanation": "string"
+    }
+  },
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}

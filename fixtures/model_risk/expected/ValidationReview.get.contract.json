@@ -1,0 +1,59 @@
+{
+  "arkhe_contract": "0.1",
+  "kind": "read",
+  "name": "model_risk.ValidationReview.get",
+  "target": {
+    "entity": "model_risk.ValidationReview",
+    "keys": [
+      "review_id"
+    ]
+  },
+  "properties": {
+    "review_id": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "enum",
+      "values": [
+        "full",
+        "targeted"
+      ]
+    },
+    "outcome": {
+      "type": "state",
+      "values": [
+        "in_progress",
+        "approved",
+        "approved_with_conditions",
+        "rejected"
+      ]
+    },
+    "review_date": {
+      "type": "date"
+    }
+  },
+  "traversals": [
+    {
+      "path": "assesses",
+      "link": "model_risk.assesses",
+      "direction": "forward",
+      "to": "model_risk.FinancialModel",
+      "cardinality": "many_to_one",
+      "many": false
+    },
+    {
+      "path": "findings",
+      "link": "model_risk.raised_in",
+      "direction": "reverse",
+      "to": "model_risk.Finding",
+      "cardinality": "many_to_one",
+      "many": true
+    }
+  ],
+  "provenance": {
+    "module": "model_risk",
+    "module_version": "0.1.0",
+    "arkhe_version": "0.1",
+    "source_hash": "sha256:a2c44dc6929212db1e2ad0d916b3461a24c164bc2e5b3c2259cbf23d4ac8e72d"
+  }
+}
