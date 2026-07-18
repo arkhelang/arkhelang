@@ -69,6 +69,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--out", metavar="DIR",
         help="Write one <name>.contract.json per contract into DIR "
              "(default: print a single JSON object to stdout)")
+
+    p_emit = sub.add_parser(
+        "emit", help="Emit an artifact from a module via its contracts.",
+        description="Validate, generate contracts, then emit for a target. "
+                    "v0.1 target: lib (a Python module of guarded functions).")
+    p_emit.add_argument("file", help="Path to a .arkhe.yaml module")
+    p_emit.add_argument("--target", choices=["lib"], default="lib",
+                        help="Emitter target (default: lib)")
+    p_emit.add_argument("--out", metavar="FILE",
+                        help="Output path (default: <module>_lib.py beside stdout)")
     return parser
 
 
@@ -86,14 +96,92 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "contracts":
         return _cmd_contracts(args)
 
+    if args.command == "emit":
+        return _cmd_emit(args)
+
     parser.print_help()
     return 2
 
 
+def _cmd_emit(args) -> int:
+    from pathlib import Path
+
+    import yaml
+
+    from .contracts import generate
+    from .emitters import pylib
+
+    try:
+        result = validate_file(args.file)
+    except OSError as exc:
+        print(f"arkhe: cannot read {args.file}: {exc.strerror or exc}", file=sys.stderr)
+        return 2
+    if not result.ok:
+        _print_findings(args.file, result)
+        print("arkhe: refusing to emit from an invalid module", file=sys.stderr)
+        return 1
+    doc = yaml.safe_load(Path(args.file).read_text())
+    try:
+        source = pylib.emit(doc, generate(doc))
+    except pylib.EmitError as exc:
+        print(f"arkhe: cannot emit: {exc}", file=sys.stderr)
+        return 1
+    if args.out:
+        try:
+            Path(args.out).write_text(source)
+        except OSError as exc:
+            print(f"arkhe: cannot write {args.out}: {exc.strerror or exc}",
+                  file=sys.stderr)
+            return 2
+        print(f"emitted {args.out}")
+    else:
+        print(source, end="")
+    return 0
+
+
+def _use_colour() -> bool:
+    import os
+    return sys.stdout.isatty() and "NO_COLOR" not in os.environ
+
+
+class _C:
+    """ANSI colours, active only on a TTY with NO_COLOR unset."""
+
+    def __init__(self):
+        on = _use_colour()
+        self.red = "\033[31m" if on else ""
+        self.green = "\033[32m" if on else ""
+        self.yellow = "\033[33m" if on else ""
+        self.bold = "\033[1m" if on else ""
+        self.dim = "\033[2m" if on else ""
+        self.off = "\033[0m" if on else ""
+
+
+def _source_excerpt(path, finding, c: _C) -> list[str]:
+    """The offending source line with a caret under the column."""
+    if finding.line is None:
+        return []
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+        text = lines[finding.line - 1]
+    except (OSError, IndexError, UnicodeDecodeError):
+        return []
+    gutter = f"{finding.line:>5} | "
+    caret_pad = " " * (len(gutter) + (finding.column or 1) - 1)
+    return [
+        f"  {c.dim}{gutter}{c.off}{text}",
+        f"  {caret_pad}{c.red}^{c.off}",
+    ]
+
+
 def _print_findings(path, result) -> None:
+    c = _C()
     for f in result.findings:
         where = f"{path}:{f.line}:{f.column}" if f.line else str(path)
-        print(f"  {where}: [{f.code}] {f.path}: {f.message}")
+        print(f"  {c.bold}{where}{c.off}: {c.yellow}[{f.code}]{c.off} "
+              f"{c.dim}{f.path}{c.off}: {f.message}")
+        for line in _source_excerpt(path, f, c):
+            print(line)
 
 
 def _cmd_validate(args) -> int:
@@ -130,11 +218,13 @@ def _cmd_validate(args) -> int:
     if any(not r.ok for r in results.values()):
         print()
 
+    c = _C()
     width = max(len(str(p)) for p in results)
     print(f"  {'module':<{width}}  findings  status")
     for path, result in results.items():
         n = len(result.findings)
-        status = "valid" if result.ok else "INVALID"
+        status = (f"{c.green}valid{c.off}" if result.ok
+                  else f"{c.red}INVALID{c.off}")
         print(f"  {str(path):<{width}}  {n:>8}  {status}")
     valid = sum(1 for r in results.values() if r.ok)
     invalid = len(results) - valid
