@@ -1,16 +1,18 @@
-# Arkhe
+# arkhelang (Python)
 
-**An ontology language for AI systems.** Early development.
+The Python reference implementation of Arkhe, an ontology language for AI
+systems. See the repository root for the language itself.
 
-Arkhe is a neutral, version-controlled language for declaring what exists in a
-domain, how it connects, and what may be done to it, by whom, with what trace,
-so that AI systems can be grounded in it, constrained by it, and audited
-against it.
+Currently provides the v0.1 validator:
 
-This package currently reserves the `arkhelang` name for the project while the
-v0.1 specification and reference implementation are developed in the open.
+    pip install arkhelang
+    arkhe validate path/to/module.arkhe.yaml
 
-- Project: https://github.com/arkhelang
-- License: Apache-2.0
+Validation is two layers: structural (the published JSON Schema) and
+semantic (name resolution, lifecycle-state rules, effect reach and
+cardinality, CEL guard analysis with the two-hop traversal bound). Exit
+codes: 0 valid, 1 invalid, 2 unreadable input. `--json` emits findings as
+machine-readable output. `akl` is installed as an alias of `arkhe`.
 
-The name comes from ἀρχή (arkhē): both *first principle* and *rule, authority*.
+The conformance fixtures in the repository's `fixtures/` directory are the
+specification of this tool's behaviour; `pytest` runs them.
