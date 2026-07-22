@@ -73,12 +73,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_emit = sub.add_parser(
         "emit", help="Emit an artifact from a module via its contracts.",
         description="Validate, generate contracts, then emit for a target. "
-                    "v0.1 target: lib (a Python module of guarded functions).")
+                    "Targets: lib (a Python module of guarded functions) and "
+                    "okf (an Open Knowledge Format bundle of markdown concept "
+                    "files, one per entity, link, action, role, and invariant).")
     p_emit.add_argument("file", help="Path to a .arkhe.yaml module")
-    p_emit.add_argument("--target", choices=["lib"], default="lib",
+    p_emit.add_argument("--target", choices=["lib", "okf"], default="lib",
                         help="Emitter target (default: lib)")
-    p_emit.add_argument("--out", metavar="FILE",
-                        help="Output path (default: <module>_lib.py beside stdout)")
+    p_emit.add_argument(
+        "--out", metavar="PATH",
+        help="Output path: a FILE for lib (default: stdout), a DIR for okf "
+             "(default: print each file with a header to stdout)")
     return parser
 
 
@@ -109,7 +113,6 @@ def _cmd_emit(args) -> int:
     import yaml
 
     from .contracts import generate
-    from .emitters import pylib
 
     try:
         result = validate_file(args.file)
@@ -121,22 +124,95 @@ def _cmd_emit(args) -> int:
         print("arkhe: refusing to emit from an invalid module", file=sys.stderr)
         return 1
     doc = yaml.safe_load(Path(args.file).read_text())
+    contracts = generate(doc)
+
+    if args.target == "okf":
+        return _emit_okf(doc, contracts, args.out)
+    return _emit_lib(doc, contracts, args.out)
+
+
+def _emit_lib(doc, contracts, out) -> int:
+    from pathlib import Path
+
+    from .emitters import pylib
+
     try:
-        source = pylib.emit(doc, generate(doc))
+        source = pylib.emit(doc, contracts)
     except pylib.EmitError as exc:
         print(f"arkhe: cannot emit: {exc}", file=sys.stderr)
         return 1
-    if args.out:
+    if out:
         try:
-            Path(args.out).write_text(source)
+            Path(out).write_text(source)
         except OSError as exc:
-            print(f"arkhe: cannot write {args.out}: {exc.strerror or exc}",
+            print(f"arkhe: cannot write {out}: {exc.strerror or exc}",
                   file=sys.stderr)
             return 2
-        print(f"emitted {args.out}")
+        print(f"emitted {out}")
     else:
         print(source, end="")
     return 0
+
+
+def _emit_okf(doc, contracts, out) -> int:
+    from pathlib import Path
+
+    from .emitters import okf
+
+    try:
+        bundle = okf.emit(doc, contracts)
+    except okf.EmitError as exc:
+        print(f"arkhe: cannot emit: {exc}", file=sys.stderr)
+        return 1
+
+    if not out:
+        for rel, content in sorted(bundle.items()):
+            print(f"==> {rel} <==")
+            print(content)
+        return 0
+
+    out_dir = Path(out)
+    manifest_path = out_dir / okf.MANIFEST_NAME
+
+    # Prune only what a previous emit recorded owning. Without a manifest the
+    # emitter has no record of what it may delete, so an out directory that
+    # already holds markdown is refused rather than swept.
+    if out_dir.exists() and not manifest_path.exists() and any(
+            out_dir.rglob("*.md")):
+        print(f"arkhe: cannot emit: {out_dir} already contains markdown files "
+              f"but no {okf.MANIFEST_NAME}; point --out at an empty directory "
+              "or remove those files yourself", file=sys.stderr)
+        return 1
+
+    try:
+        previous = []
+        if manifest_path.exists():
+            previous = [line for line in manifest_path.read_text().splitlines()
+                        if line]
+        for rel in sorted(set(previous) - set(bundle)):
+            stale = out_dir / rel
+            if stale.is_file():
+                stale.unlink()
+        for rel, content in sorted(bundle.items()):
+            path = out_dir / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text("\n".join(sorted(bundle)) + "\n")
+        _prune_empty_dirs(out_dir)
+    except OSError as exc:
+        print(f"arkhe: cannot write to {out}: {exc.strerror or exc}",
+              file=sys.stderr)
+        return 2
+    print(f"{len(bundle)} files written to {out_dir}")
+    return 0
+
+
+def _prune_empty_dirs(root) -> None:
+    """Remove directories left empty after a prune, deepest first."""
+    for path in sorted(root.rglob("*"), reverse=True):
+        if path.is_dir() and not any(path.iterdir()):
+            path.rmdir()
 
 
 def _use_colour() -> bool:

@@ -1,0 +1,79 @@
+# Fixture: OKF emitter edge-case coverage.
+# A deliberately small module whose only job is to exercise the emitter
+# branches that model_risk does not: a link without a reverse, a self-link
+# (from == to), an entity with no traversals, a role with neither claims nor
+# authorized actions, a node with no description, an optional action
+# parameter, and unicode in a description. The golden okf tree is the spec.
+
+module: catalogue
+version: 0.1.0
+arkhe: "0.1"
+annotations:
+  title: Catalogue
+  description: >
+    A tiny catalogue exercising emitter edge cases. Notes may carry unicode
+    such as café, naïve, and årsrapport.
+
+roles:
+  librarian:
+    annotations:
+      description: Curates the catalogue and publishes books.
+    claims:
+      groups: "cat/librarians"
+  auditor: {}
+
+entities:
+  Book:
+    annotations:
+      description: A catalogued book. A café favourite among readers.
+    keys: [book_id]
+    properties:
+      book_id: { type: string }
+      title: { type: string }
+      status:
+        type: state
+        values: [draft, published]
+        initial: draft
+
+  Author:
+    keys: [author_id]
+    properties:
+      author_id: { type: string }
+      name: { type: string }
+
+  Region:
+    annotations:
+      description: A shelving region with no links to anything else.
+    keys: [region_id]
+    properties:
+      region_id: { type: string }
+      name: { type: string }
+
+links:
+  written_by:
+    annotations:
+      description: A book is written by one author.
+    from: Book
+    to: Author
+    reverse: wrote
+    cardinality: many_to_one
+
+  sequel_of:
+    annotations:
+      description: A book may be a sequel of another book.
+    from: Book
+    to: Book
+    cardinality: many_to_one
+
+actions:
+  publish_book:
+    annotations:
+      description: Publish a draft book.
+    target: Book
+    parameters:
+      note: { type: string, optional: true }
+    guard: target.status == "draft"
+    authority: librarian
+    audit: standard
+    effects:
+      - target.status: published
