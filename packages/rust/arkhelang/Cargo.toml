@@ -1,0 +1,27 @@
+[package]
+name = "arkhelang"
+version = "0.1.0"
+edition = "2021"
+description = "Arkhe: an ontology language for AI systems. Validator (Rust port, early development)."
+license = "Apache-2.0"
+repository = "https://github.com/arkhelang"
+readme = "README.md"
+keywords = ["ontology", "ai", "agents", "schema", "governance"]
+categories = ["development-tools"]
+
+[dependencies]
+yaml-rust2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+
+[dev-dependencies]
+# Used only by the conformance test to read fixtures/invalid/manifest.yaml.
+yaml-rust2 = "0.10"
+
+[features]
+default = []
+# CEL guard checks are not yet ported (no CEL parser wired in). The `guards`
+# feature reserves the switch; with or without it the validator emits no
+# guard-* findings. See BUILD_NOTES.md, "Guard stub milestone".
+guards = []

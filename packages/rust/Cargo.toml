@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["arkhelang", "arkhe"]
+
+# The Rust port of the Arkhe validator. Conformance is defined by the frozen
+# v0.1 golden fixtures in ../../fixtures. See BUILD_NOTES.md for crate choices,
+# unverified API assumptions, and the commands to run the tests.
