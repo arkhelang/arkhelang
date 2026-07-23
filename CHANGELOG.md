@@ -5,7 +5,7 @@ Keep a Changelog; versions follow semantic versioning. The golden files in
 `fixtures/` are the specification; a behaviour change without a fixture
 change did not happen.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-07-23
 
 Additive language and IR work from ADR 0008. The metamodel schema is
 unchanged; contracts gain fields that known-field readers ignore, so v0.1

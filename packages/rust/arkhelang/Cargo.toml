@@ -1,11 +1,14 @@
 [package]
 name = "arkhelang"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Arkhe: an ontology language for AI systems. Validator (Rust port, early development)."
 license = "Apache-2.0"
-repository = "https://github.com/arkhelang"
+repository = "https://github.com/arkhelang/arkhelang"
 readme = "README.md"
+# The conformance tests read the golden fixtures from the repository root,
+# which is outside the packaged crate; exclude them from the published tarball.
+exclude = ["tests/"]
 keywords = ["ontology", "ai", "agents", "schema", "governance"]
 categories = ["development-tools"]
 
