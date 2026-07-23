@@ -7,6 +7,7 @@ findings use code 'struct'; semantic codes are named for their rule.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, asdict
 from importlib import resources
 from pathlib import Path
@@ -86,12 +87,56 @@ def _schema() -> dict:
 
 
 class _StrictLoader(yaml.SafeLoader):
-    """SafeLoader that rejects duplicate mapping keys instead of merging them."""
+    """SafeLoader for the Arkhe YAML surface.
+
+    Two deliberate departures from PyYAML's defaults (ADR 0009):
+
+    - YAML 1.2 core scalar typing: only ``true``/``false`` (and their capitalised
+      forms) resolve to booleans. The YAML 1.1 implicit resolver coerces
+      ``yes``/``no``/``on``/``off``/``y``/``n`` too; those are stripped here so
+      they load as strings. This is the "Norway problem": a bare ``no`` is a
+      string, not a boolean.
+    - Merge keys (``<<``) are rejected as a document-level ``yaml`` finding.
+      Plain anchors and aliases remain allowed.
+
+    Duplicate mapping keys are also rejected rather than silently merged.
+    """
+
+
+# YAML 1.2 core bool: true/false only, each in three capitalisations.
+_BOOL_1_2_CORE = re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$")
+
+# Rebuild the implicit resolver table without the YAML 1.1 bool coercion, then
+# re-add the 1.2-core bool resolver on the true/false first characters only.
+_StrictLoader.yaml_implicit_resolvers = {
+    ch: [(tag, rx) for (tag, rx) in resolvers if tag != "tag:yaml.org,2002:bool"]
+    for ch, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+for _ch in "tTfF":
+    _StrictLoader.yaml_implicit_resolvers.setdefault(_ch, []).append(
+        ("tag:yaml.org,2002:bool", _BOOL_1_2_CORE))
+
+
+class _MergeKeyError(yaml.YAMLError):
+    """A merge key (``<<``) was found. Carries its source position so the
+    finding can point at it, and a clear message rather than a construction
+    traceback."""
+
+    def __init__(self, line: int, column: int):
+        self.line = line
+        self.column = column
+        super().__init__("merge keys (<<) are not part of the Arkhe YAML surface")
 
 
 def _no_duplicates(loader, node, deep=False):
     seen = set()
     for key_node, _ in node.value:
+        # Detect the merge key before constructing it: SafeLoader has no
+        # constructor for the merge tag, so construct_object would raise an
+        # incidental traceback-derived error instead of our clear finding.
+        if key_node.tag == "tag:yaml.org,2002:merge":
+            raise _MergeKeyError(
+                key_node.start_mark.line + 1, key_node.start_mark.column + 1)
         key = loader.construct_object(key_node, deep=deep)
         if key in seen:
             raise yaml.YAMLError(
@@ -108,6 +153,8 @@ def validate_file(path: str | Path) -> Result:
     try:
         text = Path(path).read_text()
         doc = yaml.load(text, Loader=_StrictLoader)
+    except _MergeKeyError as exc:
+        return Result([Finding("yaml", "(file)", str(exc), exc.line, exc.column)])
     except yaml.YAMLError as exc:
         return Result([Finding("yaml", "(file)", f"not parseable as YAML: {exc}")])
     except UnicodeDecodeError as exc:
@@ -171,7 +218,7 @@ def _semantic(m: model.Module) -> list[Finding]:
     # State initial values are members of the declared value set.
     for e in m.entities.values():
         for p in e.properties.values():
-            if p.is_state and p.initial not in (p.values or []):
+            if p.is_state and not _is_member(p.initial, p.values or []):
                 f.append(Finding(
                     "state-initial", f"entities/{e.name}/properties/{p.name}",
                     f"initial '{p.initial}' is not among declared values"))
@@ -375,6 +422,27 @@ def _synonyms(m: model.Module) -> list[Finding]:
     return deduped
 
 
+def _same_value(a: object, b: object) -> bool:
+    """Type-aware value equality for enum/state membership (ADR 0009, D3).
+
+    Python treats ``True == 1`` and ``1.0 == 1`` as equal, and ``bool`` is a
+    subclass of ``int``, so a plain ``==`` or ``in`` would let a boolean or a
+    float literal masquerade as an integer enum member. Comparison here is
+    strict: values are equal only when their exact types match.
+    """
+    return type(a) is type(b) and a == b
+
+
+def _is_member(value: object, values: list) -> bool:
+    """Whether `value` equals a declared value, under strict typing."""
+    return any(_same_value(value, v) for v in values)
+
+
+def _is_subset(inner: list, outer: list) -> bool:
+    """Whether every value in `inner` is a strictly-typed member of `outer`."""
+    return all(_is_member(v, outer) for v in inner)
+
+
 def _to_one(link: model.Link, traversal_name: str) -> bool:
     """Whether traversing `traversal_name` follows the link toward one object."""
     forward = traversal_name == link.name
@@ -431,7 +499,7 @@ def _effect(m: model.Module, a: model.Action, target: model.Entity,
                 f"optional parameter '{pname}' may not drive an effect; "
                 f"the write would be undefined when it is omitted"))
         elif closed and (param.type != "enum"
-                         or not set(param.values or []) <= set(prop.values or [])):
+                         or not _is_subset(param.values or [], prop.values or [])):
             f.append(Finding(
                 "effect-value", where,
                 f"parameter '{pname}' may carry values outside '{prop.name}''s "
@@ -443,11 +511,11 @@ def _effect(m: model.Module, a: model.Action, target: model.Entity,
             f.append(Finding("effect-value", where,
                              f"'{value}' does not reference a property of {target.name}"))
         elif closed and (src.type not in ("enum", "state")
-                         or not set(src.values or []) <= set(prop.values or [])):
+                         or not _is_subset(src.values or [], prop.values or [])):
             f.append(Finding(
                 "effect-value", where,
                 f"'{value}' may carry values outside '{prop.name}''s declared value set"))
-    elif closed and value not in (prop.values or []):
+    elif closed and not _is_member(value, prop.values or []):
         f.append(Finding("effect-value", where,
                          f"'{value}' is not among declared values of '{prop.name}'"))
     return f

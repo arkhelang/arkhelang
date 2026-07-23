@@ -1,0 +1,30 @@
+# Invalid: merge keys (<<) are not part of the Arkhe YAML surface (ADR 0009).
+# Plain anchors and aliases are allowed; the merge key is not.
+module: invalid_case
+version: 0.1.0
+arkhe: '0.1'
+roles:
+  operator: {}
+_shared: &base
+  type: string
+entities:
+  Widget:
+    keys:
+    - widget_id
+    properties:
+      widget_id:
+        <<: *base
+      status:
+        type: state
+        values:
+        - new
+        - active
+        initial: new
+actions:
+  activate:
+    target: Widget
+    guard: target.status == "new"
+    authority: operator
+    audit: standard
+    effects:
+    - target.status: active

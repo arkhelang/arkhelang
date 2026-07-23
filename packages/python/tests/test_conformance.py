@@ -35,6 +35,26 @@ def test_invalid_fixtures_are_rejected(path):
     assert not validate_file(path).ok, f"{path.name} must fail validation"
 
 
+def _manifest_cases():
+    manifest = yaml.safe_load((FIXTURES / "invalid" / "manifest.yaml").read_text())
+    return manifest["cases"]
+
+
+@pytest.mark.parametrize(
+    "case", _manifest_cases(), ids=lambda c: Path(c["file"]).stem)
+def test_manifest_error_paths(case):
+    """Each invalid module fails with the finding code and path the manifest
+    records. The Rust harness walks this same manifest, so both ports agree on
+    the exact code (default `struct`) and path (`error_at`)."""
+    result = validate_file(FIXTURES / "invalid" / case["file"])
+    assert not result.ok, f"{case['file']} must fail validation"
+    code = case.get("code", "struct")
+    where = case["error_at"]
+    assert any(f.code == code and f.path == where for f in result.findings), (
+        f"{case['file']}: expected {code} at '{where}', got "
+        f"{[(f.code, f.path) for f in result.findings]}")
+
+
 def expect(base, code, mutate):
     doc = copy.deepcopy(base)
     mutate(doc)
@@ -56,6 +76,10 @@ SEMANTIC_CASES = {
         {"effects": [{"target.ghost": "x"}]}),
     "effect-value": lambda d: d["actions"]["retire_model"].update(
         {"effects": [{"target.status": "zombie"}]}),
+    # A boolean literal is not an integer enum member (ADR 0009, D3): the tier
+    # enum's values are [1, 2, 3], and `True` must not pass as 1.
+    "effect-value-strict-typing": lambda d: d["actions"]["reclassify_model"].update(
+        {"effects": [{"target.tier": True}]}),
     "effect-duplicate": lambda d: d["actions"]["retire_model"].update(
         {"effects": [{"target.status": "retired"}, {"target.status": "draft"}]}),
     "effect-cardinality": lambda d: d["actions"]["submit_for_validation"].update(
@@ -98,7 +122,7 @@ GUARD_CASES = {
 
 
 def _expected_code(name: str) -> str:
-    for suffix in ("-bare-fn", "-bracket", "-optional-param"):
+    for suffix in ("-bare-fn", "-bracket", "-optional-param", "-strict-typing"):
         name = name.split(suffix)[0]
     return name
 

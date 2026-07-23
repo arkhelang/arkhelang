@@ -1,0 +1,31 @@
+# Invalid: 'optional' must be a boolean. Under YAML 1.2 core (ADR 0009) a bare
+# 'yes' is a string, not a boolean, so it fails the boolean type check.
+module: invalid_case
+version: 0.1.0
+arkhe: '0.1'
+roles:
+  operator: {}
+entities:
+  Widget:
+    keys:
+    - widget_id
+    properties:
+      widget_id:
+        type: string
+      note:
+        type: string
+        optional: yes
+      status:
+        type: state
+        values:
+        - new
+        - active
+        initial: new
+actions:
+  activate:
+    target: Widget
+    guard: target.status == "new"
+    authority: operator
+    audit: standard
+    effects:
+    - target.status: active

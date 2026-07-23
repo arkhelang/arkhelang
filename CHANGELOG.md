@@ -64,6 +64,30 @@ consumers keep working.
   coverage is a committed golden. Every action contract golden and the golden
   emitted library are regenerated with the new field.
 
+### YAML surface and strict typing (ADR 0009)
+
+The Rust port surfaced three behaviours the spec had left to whichever YAML
+library each implementation used. ADR 0009 rules on all three, and the
+reference loader changes to match; these are deliberate pre-1.0 corrections.
+
+- **YAML 1.2 core scalar typing.** The strict loader no longer applies the
+  YAML 1.1 bool resolver: a bare `yes`, `no`, `on`, `off`, `y`, or `n` loads as
+  a string, and only `true`/`false` (in their three capitalisations) are
+  booleans. A module that relied on the old coercion (for example `optional:
+  yes`) now fails the boolean type check. This is the Norway problem: a bare
+  `no` is a string.
+- **Merge keys (`<<`) are refused.** Both loaders emit a document-level `yaml`
+  finding, "merge keys (<<) are not part of the Arkhe YAML surface", with line
+  and column, rather than a construction traceback. Plain anchors and aliases
+  remain allowed.
+- **Strict effect-value typing.** Enum and state membership and the subset
+  checks compare with type-aware equality: a boolean is never an integer, and
+  `1.0` is never `1`. Guards against Python's `bool`-is-`int` subclassing.
+- Conformance grows: `fixtures/invalid/yaml_11_boolean` and
+  `fixtures/invalid/merge_key` join the manifest (which gains an optional
+  `code` field so a case can name a non-`struct` finding), and a strict-typing
+  effect case joins the semantic battery in both the Python and Rust suites.
+
 ## [0.1.0] - 2026-07-18
 
 The first release. Arkhe v0.1 is the language, its conformance suite, and a

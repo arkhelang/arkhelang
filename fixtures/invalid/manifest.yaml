@@ -47,3 +47,10 @@ cases:
 - file: unpinned_import_version.arkhe.yaml
   reason: Imports pin exact versions.
   error_at: imports/0/version
+- file: yaml_11_boolean.arkhe.yaml
+  reason: YAML 1.2 core does not coerce 'yes' to a boolean, so 'optional' is a string.
+  error_at: entities/Widget/properties/note/optional
+- file: merge_key.arkhe.yaml
+  reason: Merge keys (<<) are not part of the Arkhe YAML surface (ADR 0009).
+  error_at: (file)
+  code: yaml
