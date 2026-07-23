@@ -34,9 +34,9 @@ standard
 
 ## Parameters
 
-| Parameter | Type | Values | Optional |
-| --- | --- | --- | --- |
-| `note` | string |  | yes |
+| Parameter | Type | Values | Optional | Synonyms |
+| --- | --- | --- | --- | --- |
+| `note` | string |  | yes | comment, remark |
 
 ## Effects
 

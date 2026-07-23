@@ -133,17 +133,40 @@ def _values(decl: dict) -> str:
     return ", ".join(_cell(v) for v in values)
 
 
+def _decl_synonyms(decl: dict) -> list[str]:
+    """The synonym labels on a declaration, from either shape it can arrive in.
+
+    Contract-shaped declarations (action parameters) carry a parsed `synonyms`
+    list; raw module declarations (entity and link properties) carry the
+    comma-separated string under `annotations.synonyms`.
+    """
+    syns = decl.get("synonyms")
+    if isinstance(syns, list):
+        return syns
+    return model.parse_synonyms((decl.get("annotations") or {}).get("synonyms"))
+
+
 def _decl_table(header: str, decls: dict[str, dict]) -> list[str]:
-    """A properties/parameters table; declaration order is preserved."""
-    lines = [
-        f"| {header} | Type | Values | Optional |",
-        "| --- | --- | --- | --- |",
-    ]
+    """A properties/parameters table; declaration order is preserved.
+
+    A Synonyms column appears only when at least one row declares synonyms, so
+    tables over declarations that carry none stay byte-identical to before.
+    """
+    show_syn = any(_decl_synonyms(decl) for decl in decls.values())
+    head = f"| {header} | Type | Values | Optional |"
+    rule = "| --- | --- | --- | --- |"
+    if show_syn:
+        head += " Synonyms |"
+        rule += " --- |"
+    lines = [head, rule]
     for name, decl in decls.items():
         optional = "yes" if decl.get("optional") else "no"
-        lines.append(
+        row = (
             f"| `{_cell(name)}` | {_cell(decl.get('type', ''))} "
             f"| {_values(decl)} | {optional} |")
+        if show_syn:
+            row += " " + ", ".join(_cell(s) for s in _decl_synonyms(decl)) + " |"
+        lines.append(row)
     return lines
 
 

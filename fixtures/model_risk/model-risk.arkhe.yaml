@@ -259,6 +259,20 @@ actions:
     effects:
       - target.status: retired
 
+  reclassify_model:
+    annotations:
+      description: >
+        Reclassify a model's purpose and materiality tier outside of
+        production. Writes two enum destinations: purpose (string-valued) and
+        tier (integer-valued).
+    target: FinancialModel
+    guard: target.status != "production" && target.status != "retired"
+    authority: head_of_model_risk
+    audit: mandatory
+    effects:
+      - target.purpose: risk
+      - target.tier: 2
+
 invariants:
   production_models_are_current:
     annotations:

@@ -84,6 +84,60 @@ def test_property_synonym_colliding_with_a_sibling_property_is_rejected():
     assert "synonym-collision" in _codes(doc)
 
 
+def test_whitespace_only_synonym_is_rejected_as_empty():
+    doc = _doc()
+    doc["entities"]["Book"]["annotations"]["synonyms"] = "volume,   ,tome"
+    assert "synonym-empty" in _codes(doc)
+
+
+def test_synonym_case_folding_onto_a_declared_name_is_rejected():
+    # Names stay case-sensitive, but 'author' would ground onto entity Author.
+    doc = _doc()
+    doc["entities"]["Book"]["annotations"]["synonyms"] = "author"
+    assert "synonym-collision" in _codes(doc)
+
+
+def test_property_synonym_colliding_with_a_forward_traversal_is_rejected():
+    # A property synonym shares the runtime neighbourhood namespace with the
+    # entity's traversal names, so it may not equal a forward link name.
+    doc = _doc()
+    doc["entities"]["Book"]["properties"]["title"]["annotations"] = {
+        "synonyms": "written_by"}
+    assert "synonym-collision" in _codes(doc)
+
+
+def test_property_synonym_colliding_with_a_reverse_traversal_is_rejected():
+    doc = _doc()
+    doc["entities"]["Author"]["properties"]["name"]["annotations"] = {
+        "synonyms": "wrote"}
+    assert "synonym-collision" in _codes(doc)
+
+
+def test_link_synonym_scope_is_the_endpoint_neighbourhood_not_the_module():
+    # 'wrote' is written_by's reverse, co-visible only from Author. sequel_of
+    # never reaches Author, so it may take 'wrote' as a synonym; the old flat
+    # module-wide namespace wrongly rejected this.
+    doc = _doc()
+    doc["links"]["sequel_of"].setdefault("annotations", {})["synonyms"] = "wrote"
+    assert validate(doc).ok
+
+
+def test_link_synonym_colliding_with_a_covisible_traversal_is_rejected():
+    doc = _doc()
+    doc["links"]["sequel_of"].setdefault(
+        "annotations", {})["synonyms"] = "written_by"
+    assert "synonym-collision" in _codes(doc)
+
+
+def test_link_property_synonym_colliding_with_a_far_entity_property_is_rejected():
+    # Link properties merge into the far object (ADR 0006); their synonyms are
+    # scoped like their names, against the far entity's properties.
+    doc = _doc()
+    doc["links"]["written_by"]["properties"] = {
+        "role": {"type": "string", "annotations": {"synonyms": "name"}}}
+    assert "synonym-collision" in _codes(doc)
+
+
 # --- Contract carriage ------------------------------------------------------
 
 def test_action_and_parameter_synonyms_are_carried():
@@ -125,3 +179,33 @@ def test_okf_surfaces_synonyms_as_an_also_known_as_line():
     assert "Also known as: volume, tome." in bundle["entities/Book.md"]
     assert "Also known as: authored by, by." in bundle["links/written_by.md"]
     assert "Also known as: release, go live." in bundle["actions/publish_book.md"]
+
+
+def test_pylib_param_doc_appends_synonyms_as_aka():
+    doc = _doc()
+    source = pylib.emit(doc, generate(doc))
+    assert "note: string, optional, aka: comment, remark" in source
+
+
+def test_okf_property_table_gains_a_synonyms_column_when_present():
+    doc = _doc()
+    book = okf.emit(doc, generate(doc))["entities/Book.md"]
+    assert "| Property | Type | Values | Optional | Synonyms |" in book
+    assert "| --- | --- | --- | --- | --- |" in book
+    # The row for `title` carries its synonyms in the new column.
+    assert "name, heading" in book
+
+
+def test_okf_parameter_table_gains_a_synonyms_column_when_present():
+    doc = _doc()
+    action = okf.emit(doc, generate(doc))["actions/publish_book.md"]
+    assert "| Parameter | Type | Values | Optional | Synonyms |" in action
+    assert "comment, remark" in action
+
+
+def test_okf_table_omits_the_synonyms_column_when_no_row_declares_them():
+    # Author declares no property synonyms, so its table stays four columns.
+    doc = _doc()
+    author = okf.emit(doc, generate(doc))["entities/Author.md"]
+    assert "| Property | Type | Values | Optional |" in author
+    assert "Synonyms" not in author

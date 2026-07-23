@@ -181,3 +181,22 @@ def test_cell_flattens_newlines_to_spaces():
 
 def test_cell_escapes_backslash_first():
     assert okf._cell("a\\b") == "a\\\\b"
+
+
+def test_hostile_synonym_routes_through_cell_in_the_aka_line():
+    doc = _catalogue_doc()
+    doc["entities"]["Book"]["annotations"]["synonyms"] = "a|b`c[d]e"
+    book = okf.emit(doc, generate(doc))["entities/Book.md"]
+    assert "Also known as: a\\|b\\`c\\[d\\]e." in book
+
+
+def test_hostile_synonym_routes_through_cell_in_the_property_table():
+    doc = _catalogue_doc()
+    doc["entities"]["Book"]["properties"]["title"]["annotations"] = {
+        "synonyms": "a|b"}
+    book = okf.emit(doc, generate(doc))["entities/Book.md"]
+    title_row = next(
+        line for line in book.splitlines() if line.startswith("| `title`"))
+    # The pipe is escaped, so it cannot open a spurious table column.
+    assert "a\\|b" in title_row
+    assert "a|b" not in title_row.replace("a\\|b", "")

@@ -190,6 +190,17 @@ def test_hostile_description_cannot_break_generated_source():
     assert "smuggled" not in source.split("json.loads")[0]  # not top-level code
 
 
+def test_hostile_synonym_cannot_break_generated_source():
+    doc = yaml.safe_load(MODULE.read_text())
+    # No comma (that is the list separator); everything else a docstring might
+    # fear: backticks, a triple-quote, pipes, brackets, and a smuggled import.
+    doc["actions"]["retire_model"]["annotations"]["synonyms"] = (
+        '`|[]{}"""\nimport os  # smuggled')
+    source = pylib.emit(doc, generate(doc))
+    compile(source, "<probe>", "exec")
+    assert "smuggled" not in source.split("json.loads")[0]  # not top-level code
+
+
 def test_colliding_action_and_accessor_names_refuse_to_emit():
     doc = yaml.safe_load(MODULE.read_text())
     doc["actions"]["get_financial_model"] = {

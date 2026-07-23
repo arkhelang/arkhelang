@@ -18,11 +18,11 @@ Also known as: volume, tome.
 
 ## Properties
 
-| Property | Type | Values | Optional |
-| --- | --- | --- | --- |
-| `book_id` | string |  | no |
-| `title` | string |  | no |
-| `status` | state | draft, published | no |
+| Property | Type | Values | Optional | Synonyms |
+| --- | --- | --- | --- | --- |
+| `book_id` | string |  | no |  |
+| `title` | string |  | no | name, heading |
+| `status` | state | draft, published | no | state, phase |
 
 ## Lifecycle
 

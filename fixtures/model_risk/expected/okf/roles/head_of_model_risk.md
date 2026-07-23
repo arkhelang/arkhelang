@@ -21,6 +21,7 @@ Accountable executive for model risk.
 Actions this role authorizes:
 
 - [grant_production_use](../actions/grant_production_use.md)
+- [reclassify_model](../actions/reclassify_model.md)
 - [retire_model](../actions/retire_model.md)
 
 ## Approves

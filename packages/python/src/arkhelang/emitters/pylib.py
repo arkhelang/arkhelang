@@ -21,6 +21,8 @@ def _param_doc(decl: dict) -> str:
         kind += " (" + " | ".join(map(str, decl["values"])) + ")"
     if decl.get("optional"):
         kind += ", optional"
+    if decl.get("synonyms"):
+        kind += ", aka: " + ", ".join(decl["synonyms"])
     return kind
 
 

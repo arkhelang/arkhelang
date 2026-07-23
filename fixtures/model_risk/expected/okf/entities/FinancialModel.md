@@ -42,5 +42,6 @@ The `status` property is a lifecycle state with values: draft, in_validation, va
 Actions targeting this entity:
 
 - [grant_production_use](../actions/grant_production_use.md)
+- [reclassify_model](../actions/reclassify_model.md)
 - [retire_model](../actions/retire_model.md)
 - [submit_for_validation](../actions/submit_for_validation.md)

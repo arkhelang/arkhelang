@@ -41,7 +41,7 @@ def test_generation_is_deterministic():
 
 def test_one_contract_per_action_and_entity(contracts):
     kinds = [c["kind"] for c in contracts.values()]
-    assert kinds.count("action") == 6 and kinds.count("read") == 6
+    assert kinds.count("action") == 7 and kinds.count("read") == 6
 
 
 def test_cross_link_write_surface(contracts):
@@ -71,7 +71,7 @@ def test_cli_refuses_invalid_module(capsys, tmp_path):
 def test_cli_writes_contract_files(tmp_path):
     assert main(["contracts", str(MODULE), "--out", str(tmp_path)]) == 0
     written = list(tmp_path.glob("*.contract.json"))
-    assert len(written) == 12
+    assert len(written) == 13
 
 
 def test_canonical_hash_ignores_formatting():
@@ -114,6 +114,27 @@ def test_enum_parameter_driven_effect_resolves_destination_type(contracts):
     assert driven["value"] == "params.outcome" and driven["type"] == "state"
     assert driven["values"] == [
         "in_progress", "approved", "approved_with_conditions", "rejected"]
+
+
+def test_enum_effect_destinations_resolve_type_and_values(contracts):
+    """ADR 0008 item 3, enum (non-state) coverage: both a string-valued and an
+    integer-valued enum destination inline `type: enum` with their values."""
+    effects = contracts["model_risk.reclassify_model"]["effects"]
+    purpose = next(e for e in effects if e["path"] == "target.purpose")
+    assert purpose["type"] == "enum"
+    assert purpose["values"] == ["pricing", "risk", "capital", "aml"]
+    tier = next(e for e in effects if e["path"] == "target.tier")
+    assert tier["type"] == "enum"
+    assert tier["values"] == [1, 2, 3]
+
+
+def test_enum_effect_type_appears_in_the_contract_golden():
+    """The `type: enum` block is committed to a golden, not only asserted live."""
+    golden = json.loads(
+        (EXPECTED / "reclassify_model.contract.json").read_text())
+    purpose = next(e for e in golden["effects"] if e["path"] == "target.purpose")
+    assert purpose["type"] == "enum" and purpose["values"] == [
+        "pricing", "risk", "capital", "aml"]
 
 
 def test_canonical_hash_tracks_content():

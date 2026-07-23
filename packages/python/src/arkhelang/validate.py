@@ -262,9 +262,12 @@ def _synonym_group(
     (declaration name, its synonyms, finding path). A synonym must be a
     non-empty label, unique within its declaration, and distinct from every
     declared name in scope and from a synonym already claimed by another
-    declaration in the same scope.
+    declaration in the same scope. Names stay case-sensitive, but a synonym
+    that case-folds onto a declared name is still a collision: it would ground
+    onto that name on any case-insensitive matcher.
     """
     f: list[Finding] = []
+    names_cf: dict[str, str] = {n.casefold(): n for n in names}
     claimed: dict[str, str] = {}  # synonym -> declaration that owns it
     for decl_name, synonyms, where in decls:
         seen_here: set[str] = set()
@@ -284,6 +287,11 @@ def _synonym_group(
                 f.append(Finding(
                     "synonym-collision", where,
                     f"synonym '{s}' collides with a declared name in scope"))
+            elif s.casefold() in names_cf:
+                f.append(Finding(
+                    "synonym-collision", where,
+                    f"synonym '{s}' case-folds onto declared name "
+                    f"'{names_cf[s.casefold()]}' in scope"))
             elif s in claimed and claimed[s] != decl_name:
                 f.append(Finding(
                     "synonym-collision", where,
@@ -296,10 +304,20 @@ def _synonym_group(
 def _synonyms(m: model.Module) -> list[Finding]:
     """Reserved `synonyms` annotations, checked per namespace.
 
-    Each declaration kind that can carry synonyms is a scope: entity type
-    names, link (and reverse) names, action names, and, one container at a
-    time, the properties of each entity and link and the parameters of each
-    action.
+    The scopes mirror the base validator's own name-collision scopes, not one
+    flat module-wide namespace:
+
+    - Entity type names and action names are each a module-wide scope.
+    - Each entity's neighbourhood is one scope: its own properties and the
+      traversal names co-visible from it (forward link names from this entity,
+      reverse names into it). Runtime materialization merges these into one
+      namespace (runtime.World.neighbourhood), so a property synonym and a
+      link synonym are checked together and against each other here. A link's
+      synonyms are checked from BOTH its endpoints, since the read contract
+      surfaces them on the forward and the reverse traversal alike.
+    - Link property synonyms are scoped like link property names (ADR 0006):
+      the link's own properties plus the far-entity properties they merge into.
+    - Each action's parameters are one scope.
     """
     f: list[Finding] = []
 
@@ -307,25 +325,35 @@ def _synonyms(m: model.Module) -> list[Finding]:
         set(m.entities),
         [(e.name, e.synonyms, f"entities/{e.name}") for e in m.entities.values()]))
 
-    link_names = set(m.links) | {
-        l.reverse for l in m.links.values() if l.reverse}
-    f.extend(_synonym_group(
-        link_names,
-        [(l.name, l.synonyms, f"links/{l.name}") for l in m.links.values()]))
-
     f.extend(_synonym_group(
         set(m.actions),
         [(a.name, a.synonyms, f"actions/{a.name}") for a in m.actions.values()]))
 
+    # Per-entity neighbourhood: properties and co-visible traversal names.
     for e in m.entities.values():
-        f.extend(_synonym_group(
-            set(e.properties),
-            [(p.name, p.synonyms, f"entities/{e.name}/properties/{p.name}")
-             for p in e.properties.values()]))
+        names: set[str] = set(e.properties)
+        decls: list[tuple[str, list[str], str]] = [
+            (p.name, p.synonyms, f"entities/{e.name}/properties/{p.name}")
+            for p in e.properties.values()]
+        for l in m.links.values():
+            if l.from_entity == e.name:
+                names.add(l.name)
+                decls.append((l.name, l.synonyms, f"links/{l.name}"))
+            if l.reverse and l.to_entity == e.name:
+                names.add(l.reverse)
+                decls.append((l.reverse, l.synonyms, f"links/{l.name}"))
+        f.extend(_synonym_group(names, decls))
 
+    # Link property synonyms: own names plus far-entity property names.
     for l in m.links.values():
+        far_ends = [l.to_entity] + ([l.from_entity] if l.reverse else [])
+        names = set(l.properties)
+        for far in far_ends:
+            far_entity = m.entities.get(far)
+            if far_entity is not None:
+                names |= set(far_entity.properties)
         f.extend(_synonym_group(
-            set(l.properties),
+            names,
             [(p.name, p.synonyms, f"links/{l.name}/properties/{p.name}")
              for p in l.properties.values()]))
 
@@ -335,7 +363,16 @@ def _synonyms(m: model.Module) -> list[Finding]:
             [(p.name, p.synonyms, f"actions/{a.name}/parameters/{p.name}")
              for p in a.parameters.values()]))
 
-    return f
+    # A link's synonyms are checked from both endpoints, so an intrinsic fault
+    # (empty or duplicated label) can surface twice; collapse identical findings.
+    deduped: list[Finding] = []
+    seen_findings: set[tuple[str, str, str]] = set()
+    for finding in f:
+        key = (finding.code, finding.path, finding.message)
+        if key not in seen_findings:
+            seen_findings.add(key)
+            deduped.append(finding)
+    return deduped
 
 
 def _to_one(link: model.Link, traversal_name: str) -> bool:

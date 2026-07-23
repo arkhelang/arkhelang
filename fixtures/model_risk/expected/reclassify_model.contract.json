@@ -1,22 +1,18 @@
 {
   "arkhe_contract": "0.1",
   "kind": "action",
-  "name": "model_risk.retire_model",
-  "description": "Retire a production model.",
+  "name": "model_risk.reclassify_model",
+  "description": "Reclassify a model's purpose and materiality tier outside of production. Writes two enum destinations: purpose (string-valued) and tier (integer-valued).",
   "target": {
     "entity": "model_risk.FinancialModel",
     "keys": [
       "model_id"
     ]
   },
-  "parameters": {
-    "reason": {
-      "type": "string"
-    }
-  },
+  "parameters": {},
   "guard": {
     "language": "cel",
-    "expression": "target.status == \"production\"",
+    "expression": "target.status != \"production\" && target.status != \"retired\"",
     "context": {
       "target": "model_risk.FinancialModel",
       "traversals": [],
@@ -32,19 +28,28 @@
   "approval": null,
   "audit": {
     "level": "mandatory",
-    "event": "model_risk.retire_model.v1"
+    "event": "model_risk.reclassify_model.v1"
   },
   "effects": [
     {
-      "path": "target.status",
-      "value": "retired",
-      "type": "state",
+      "path": "target.purpose",
+      "value": "risk",
+      "type": "enum",
       "values": [
-        "draft",
-        "in_validation",
-        "validated",
-        "production",
-        "retired"
+        "pricing",
+        "risk",
+        "capital",
+        "aml"
+      ]
+    },
+    {
+      "path": "target.tier",
+      "value": 2,
+      "type": "enum",
+      "values": [
+        1,
+        2,
+        3
       ]
     }
   ],
@@ -54,7 +59,7 @@
   "refusal": {
     "shape": {
       "refused": true,
-      "action": "model_risk.retire_model",
+      "action": "model_risk.reclassify_model",
       "failed_clause": "string",
       "explanation": "string"
     }

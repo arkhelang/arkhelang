@@ -5,6 +5,65 @@ Keep a Changelog; versions follow semantic versioning. The golden files in
 `fixtures/` are the specification; a behaviour change without a fixture
 change did not happen.
 
+## [0.2.0] - Unreleased
+
+Additive language and IR work from ADR 0008. The metamodel schema is
+unchanged; contracts gain fields that known-field readers ignore, so v0.1
+consumers keep working.
+
+### OKF emitter (ADR 0008 item 1)
+
+- `arkhe emit --target=okf <file>`: an Open Knowledge Format bundle (Google,
+  OKF v0.1), one markdown concept file per entity, link, action, role, and
+  invariant, plus per-section and root `index.md` pages for progressive
+  disclosure. Prose comes only from module annotations and the generated
+  contracts; the emitter adds structural scaffolding, never domain text.
+  Output is deterministic (the optional `timestamp` field is omitted by
+  design), and every name that becomes a path segment is re-checked, so a
+  malformed or reserved (`index`) name is refused rather than escaping into a
+  path. A manifest lets a re-emit prune only what it previously wrote. Golden
+  bundles for the model_risk fixture and an okf_edge edge-case fixture are the
+  spec. Shipped in acc432e.
+
+### Synonyms annotations (ADR 0008 item 2)
+
+- A reserved `synonyms` annotation, a comma-separated list of alternate
+  labels, on entities, links, actions, properties (including enum and state
+  properties), and action parameters. The validator parses and checks each
+  list: labels are trimmed and non-empty, unique within their declaration,
+  and free of name clashes within their scope. Scopes mirror the base
+  validator's own, not one flat module namespace: entity-type and action
+  names are module-wide; a property or link (traversal) synonym is checked
+  against the entity neighbourhood it shares at runtime (own properties plus
+  the co-visible forward and reverse traversal names), a link's synonyms from
+  both its endpoints; a link-property synonym is checked against the
+  far-entity properties it merges into (ADR 0006). Names stay case-sensitive,
+  but a synonym that case-folds onto a declared name is a collision. A label
+  cannot itself contain a comma, which is the list separator. New finding
+  codes `synonym-empty`, `synonym-duplicate`, and `synonym-collision`.
+- Contracts carry the parsed list as structured data: `synonyms` on action
+  and read contracts, on parameter and property declarations, and on read
+  traversals for links. Tool descriptions stay prose; synonyms are data.
+- Emitters surface them: pylib docstrings gain an "Also known as" line for
+  entity, action, and read declarations, and parameter docs gain an
+  "aka: ..." tail; OKF entity, link, and action files gain an "Also known
+  as" line after the description, and property and parameter tables gain a
+  Synonyms column when any row declares one. The okf_edge catalogue fixture
+  declares synonyms across every kind; its golden bundle is updated
+  accordingly.
+
+### Resolved types on effects (ADR 0008 item 3)
+
+- Each effect entry in an action contract now inlines the destination
+  property's resolved type: `type` always, plus `values` for enum and state
+  destinations. A contract consumer reads the write's destination type
+  directly, without re-resolving the effect path against the target's read
+  contract; the first consumers are the emitters and ports still to come.
+  The model_risk fixture gains a `reclassify_model` action that writes both a
+  string-valued and an integer-valued enum destination, so enum (non-state)
+  coverage is a committed golden. Every action contract golden and the golden
+  emitted library are regenerated with the new field.
+
 ## [0.1.0] - 2026-07-18
 
 The first release. Arkhe v0.1 is the language, its conformance suite, and a

@@ -16,6 +16,6 @@ Module `model_risk`, version 0.1.0, Arkhe 0.1.
 
 - [Entities](entities/index.md) (6)
 - [Links](links/index.md) (5)
-- [Actions](actions/index.md) (6)
+- [Actions](actions/index.md) (7)
 - [Roles](roles/index.md) (4)
 - [Invariants](invariants/index.md) (3)
