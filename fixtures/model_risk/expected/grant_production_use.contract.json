@@ -50,7 +50,15 @@
   "effects": [
     {
       "path": "target.status",
-      "value": "production"
+      "value": "production",
+      "type": "state",
+      "values": [
+        "draft",
+        "in_validation",
+        "validated",
+        "production",
+        "retired"
+      ]
     }
   ],
   "write_surface": [

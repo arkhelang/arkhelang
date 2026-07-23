@@ -239,6 +239,8 @@ def _semantic(m: model.Module) -> list[Finding]:
             rep = guards.analyze(a.approval.when, m, "target", a.target, params=a.parameters)
             f.extend(Finding(i.code, f"{where}/approval/when", i.message) for i in rep.issues)
 
+    f.extend(_synonyms(m))
+
     # Invariants.
     for inv in m.invariants.values():
         where = f"invariants/{inv.name}"
@@ -248,6 +250,90 @@ def _semantic(m: model.Module) -> list[Finding]:
             continue
         report = guards.analyze(inv.check, m, "entity", inv.over)
         f.extend(Finding(i.code, f"{where}/check", i.message) for i in report.issues)
+
+    return f
+
+
+def _synonym_group(
+    names: set[str], decls: list[tuple[str, list[str], str]]) -> list[Finding]:
+    """Check one synonym namespace.
+
+    `names` is the set of declared names in scope; `decls` is a list of
+    (declaration name, its synonyms, finding path). A synonym must be a
+    non-empty label, unique within its declaration, and distinct from every
+    declared name in scope and from a synonym already claimed by another
+    declaration in the same scope.
+    """
+    f: list[Finding] = []
+    claimed: dict[str, str] = {}  # synonym -> declaration that owns it
+    for decl_name, synonyms, where in decls:
+        seen_here: set[str] = set()
+        for s in synonyms:
+            if s == "":
+                f.append(Finding(
+                    "synonym-empty", where,
+                    "a synonym is empty; list non-empty, comma-separated labels"))
+                continue
+            if s in seen_here:
+                f.append(Finding(
+                    "synonym-duplicate", where,
+                    f"synonym '{s}' is listed more than once"))
+                continue
+            seen_here.add(s)
+            if s in names:
+                f.append(Finding(
+                    "synonym-collision", where,
+                    f"synonym '{s}' collides with a declared name in scope"))
+            elif s in claimed and claimed[s] != decl_name:
+                f.append(Finding(
+                    "synonym-collision", where,
+                    f"synonym '{s}' is already a synonym of '{claimed[s]}'"))
+            else:
+                claimed.setdefault(s, decl_name)
+    return f
+
+
+def _synonyms(m: model.Module) -> list[Finding]:
+    """Reserved `synonyms` annotations, checked per namespace.
+
+    Each declaration kind that can carry synonyms is a scope: entity type
+    names, link (and reverse) names, action names, and, one container at a
+    time, the properties of each entity and link and the parameters of each
+    action.
+    """
+    f: list[Finding] = []
+
+    f.extend(_synonym_group(
+        set(m.entities),
+        [(e.name, e.synonyms, f"entities/{e.name}") for e in m.entities.values()]))
+
+    link_names = set(m.links) | {
+        l.reverse for l in m.links.values() if l.reverse}
+    f.extend(_synonym_group(
+        link_names,
+        [(l.name, l.synonyms, f"links/{l.name}") for l in m.links.values()]))
+
+    f.extend(_synonym_group(
+        set(m.actions),
+        [(a.name, a.synonyms, f"actions/{a.name}") for a in m.actions.values()]))
+
+    for e in m.entities.values():
+        f.extend(_synonym_group(
+            set(e.properties),
+            [(p.name, p.synonyms, f"entities/{e.name}/properties/{p.name}")
+             for p in e.properties.values()]))
+
+    for l in m.links.values():
+        f.extend(_synonym_group(
+            set(l.properties),
+            [(p.name, p.synonyms, f"links/{l.name}/properties/{p.name}")
+             for p in l.properties.values()]))
+
+    for a in m.actions.values():
+        f.extend(_synonym_group(
+            set(a.parameters),
+            [(p.name, p.synonyms, f"actions/{a.name}/parameters/{p.name}")
+             for p in a.parameters.values()]))
 
     return f
 

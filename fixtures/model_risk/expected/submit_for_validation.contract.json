@@ -33,7 +33,15 @@
   "effects": [
     {
       "path": "target.status",
-      "value": "in_validation"
+      "value": "in_validation",
+      "type": "state",
+      "values": [
+        "draft",
+        "in_validation",
+        "validated",
+        "production",
+        "retired"
+      ]
     }
   ],
   "write_surface": [

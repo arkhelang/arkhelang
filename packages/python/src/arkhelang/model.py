@@ -12,6 +12,24 @@ from dataclasses import dataclass, field
 SCALAR_TYPES = {"string", "int", "number", "bool", "date", "datetime", "document"}
 
 
+def parse_synonyms(raw: str | None) -> list[str]:
+    """Parse a `synonyms` annotation into its list of labels.
+
+    The annotation is string-valued (per the schema), a comma-separated list.
+    Each label is trimmed of surrounding whitespace; empty labels are kept in
+    the returned list so the validator can flag them. On a valid module the
+    list is clean (no empties, no duplicates), so contract and emitter code can
+    use it directly.
+    """
+    if not raw:
+        return []
+    return [label.strip() for label in raw.split(",")]
+
+
+def _node_synonyms(node: dict) -> list[str]:
+    return parse_synonyms((node.get("annotations") or {}).get("synonyms"))
+
+
 @dataclass
 class Property:
     name: str
@@ -19,6 +37,7 @@ class Property:
     values: list | None = None
     initial: object | None = None
     optional: bool = False
+    synonyms: list[str] = field(default_factory=list)
 
     @property
     def is_state(self) -> bool:
@@ -30,6 +49,7 @@ class Entity:
     name: str
     keys: list[str]
     properties: dict[str, Property]
+    synonyms: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -40,6 +60,7 @@ class Link:
     cardinality: str
     reverse: str | None = None
     properties: dict[str, Property] = field(default_factory=dict)
+    synonyms: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -58,6 +79,7 @@ class Action:
     effects: list[tuple[str, object]]
     parameters: dict[str, Property] = field(default_factory=dict)
     approval: Approval | None = None
+    synonyms: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -106,13 +128,19 @@ def _properties(raw: dict) -> dict[str, Property]:
             values=p.get("values"),
             initial=p.get("initial"),
             optional=p.get("optional", False),
+            synonyms=_node_synonyms(p),
         )
     return props
 
 
 def build(doc: dict) -> Module:
     entities = {
-        name: Entity(name=name, keys=e["keys"], properties=_properties(e["properties"]))
+        name: Entity(
+            name=name,
+            keys=e["keys"],
+            properties=_properties(e["properties"]),
+            synonyms=_node_synonyms(e),
+        )
         for name, e in doc["entities"].items()
     }
     links = {
@@ -123,6 +151,7 @@ def build(doc: dict) -> Module:
             cardinality=l["cardinality"],
             reverse=l.get("reverse"),
             properties=_properties(l.get("properties")),
+            synonyms=_node_synonyms(l),
         )
         for name, l in (doc.get("links") or {}).items()
     }
@@ -144,6 +173,7 @@ def build(doc: dict) -> Module:
             effects=effects,
             parameters=_properties(a.get("parameters")),
             approval=approval,
+            synonyms=_node_synonyms(a),
         )
     invariants = {
         name: Invariant(name=name, over=i["over"], check=i["check"])

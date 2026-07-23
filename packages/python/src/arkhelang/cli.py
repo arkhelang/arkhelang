@@ -35,6 +35,7 @@ finding codes:
   action-ref         action targets and authorities must be declared
   effect-*           effect path, value, cardinality, and duplicate rules
   guard-*            CEL guard syntax, names, traversal depth, stdlib, macros
+  synonym-*          synonyms are non-empty, unique, and free of name clashes
 
 `akl` is installed as an alias of `arkhe`.
 Documentation: https://arkhelang.org and https://github.com/arkhelang/arkhelang

@@ -37,7 +37,13 @@
   "effects": [
     {
       "path": "target.status",
-      "value": "waived"
+      "value": "waived",
+      "type": "state",
+      "values": [
+        "open",
+        "remediated",
+        "waived"
+      ]
     }
   ],
   "write_surface": [

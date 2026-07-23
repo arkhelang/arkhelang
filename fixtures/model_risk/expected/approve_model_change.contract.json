@@ -49,7 +49,14 @@
   "effects": [
     {
       "path": "target.status",
-      "value": "approved"
+      "value": "approved",
+      "type": "state",
+      "values": [
+        "proposed",
+        "approved",
+        "deployed",
+        "rejected"
+      ]
     }
   ],
   "write_surface": [

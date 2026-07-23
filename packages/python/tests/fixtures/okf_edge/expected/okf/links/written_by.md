@@ -10,6 +10,8 @@ type: Arkhe Link
 
 A book is written by one author.
 
+Also known as: authored by, by.
+
 ## Endpoints
 
 - From: [Book](../entities/Book.md)

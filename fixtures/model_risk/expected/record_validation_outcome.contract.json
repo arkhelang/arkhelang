@@ -42,15 +42,31 @@
   "effects": [
     {
       "path": "target.outcome",
-      "value": "params.outcome"
+      "value": "params.outcome",
+      "type": "state",
+      "values": [
+        "in_progress",
+        "approved",
+        "approved_with_conditions",
+        "rejected"
+      ]
     },
     {
       "path": "target.assesses.last_validated",
-      "value": "target.review_date"
+      "value": "target.review_date",
+      "type": "date"
     },
     {
       "path": "target.assesses.status",
-      "value": "validated"
+      "value": "validated",
+      "type": "state",
+      "values": [
+        "draft",
+        "in_validation",
+        "validated",
+        "production",
+        "retired"
+      ]
     }
   ],
   "write_surface": [

@@ -57,6 +57,8 @@ def _parameter(p: model.Property) -> dict:
         out["values"] = p.values
     if p.optional:
         out["optional"] = True
+    if p.synonyms:
+        out["synonyms"] = p.synonyms
     return out
 
 
@@ -105,6 +107,40 @@ def _guard_block(module: model.Module, action: model.Action) -> dict:
     }
 
 
+def _resolve_effect_property(module: model.Module, action: model.Action,
+                             path: str) -> model.Property | None:
+    """The destination property an effect path writes.
+
+    Contracts are generated only from valid modules, so the path resolves;
+    a None return means the caller handed us an unvalidated module.
+    """
+    target = module.entities[action.target]
+    segs = path.split(".")[1:]  # drop 'target'
+    if len(segs) == 1:
+        return target.properties.get(segs[0])
+    hop = module.traversal_info(action.target).get(segs[0])
+    if hop is None:
+        return None
+    far, _ = hop
+    return module.entities[far].properties.get(segs[1])
+
+
+def _effect_entry(module: model.Module, action: model.Action,
+                  path: str, value: object) -> dict:
+    """One effect entry with the destination property's type resolved inline.
+
+    Each entry carries `type`, and `values` for enum and state destinations,
+    so a downstream emitter can type-check the write without rejoining the
+    effect against the target's read contract (ADR 0008 item 3)."""
+    entry: dict = {"path": path, "value": value}
+    prop = _resolve_effect_property(module, action, path)
+    if prop is not None:
+        entry["type"] = prop.type
+        if prop.values is not None:
+            entry["values"] = prop.values
+    return entry
+
+
 def _write_surface(module: model.Module, action: model.Action) -> list[str]:
     touched = {action.target}
     info = module.traversal_info(action.target)
@@ -117,7 +153,7 @@ def _write_surface(module: model.Module, action: model.Action) -> list[str]:
 
 def action_contract(module: model.Module, action: model.Action,
                     source_hash: str, description: str | None) -> dict:
-    return {
+    contract = {
         "arkhe_contract": CONTRACT_VERSION,
         "kind": "action",
         "name": f"{module.name}.{action.name}",
@@ -140,7 +176,8 @@ def action_contract(module: model.Module, action: model.Action,
             "event": f"{module.name}.{action.name}.v1",
         },
         "effects": [
-            {"path": path, "value": value} for path, value in action.effects],
+            _effect_entry(module, action, path, value)
+            for path, value in action.effects],
         "write_surface": _write_surface(module, action),
         "refusal": {
             "shape": {
@@ -157,12 +194,16 @@ def action_contract(module: model.Module, action: model.Action,
             "source_hash": source_hash,
         },
     }
+    if action.synonyms:
+        contract["synonyms"] = action.synonyms
+    return contract
 
 
 def read_contract(module: model.Module, entity: model.Entity,
                   source_hash: str) -> dict:
-    traversals = [
-        {
+    traversals = []
+    for name, (far, link) in sorted(module.traversal_info(entity.name).items()):
+        traversal = {
             "path": name,
             "link": f"{module.name}.{link.name}",
             "direction": "forward" if name == link.name else "reverse",
@@ -170,9 +211,10 @@ def read_contract(module: model.Module, entity: model.Entity,
             "cardinality": link.cardinality,
             "many": guards._hop_is_many(link, name),
         }
-        for name, (far, link) in sorted(module.traversal_info(entity.name).items())
-    ]
-    return {
+        if link.synonyms:
+            traversal["synonyms"] = link.synonyms
+        traversals.append(traversal)
+    contract = {
         "arkhe_contract": CONTRACT_VERSION,
         "kind": "read",
         "name": f"{module.name}.{entity.name}.get",
@@ -190,6 +232,9 @@ def read_contract(module: model.Module, entity: model.Entity,
             "source_hash": source_hash,
         },
     }
+    if entity.synonyms:
+        contract["synonyms"] = entity.synonyms
+    return contract
 
 
 def generate(doc: dict) -> dict[str, dict]:

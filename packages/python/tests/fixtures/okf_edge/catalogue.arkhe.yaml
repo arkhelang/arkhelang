@@ -26,14 +26,20 @@ entities:
   Book:
     annotations:
       description: A catalogued book. A café favourite among readers.
+      synonyms: volume, tome
     keys: [book_id]
     properties:
       book_id: { type: string }
-      title: { type: string }
+      title:
+        type: string
+        annotations:
+          synonyms: name, heading
       status:
         type: state
         values: [draft, published]
         initial: draft
+        annotations:
+          synonyms: state, phase
 
   Author:
     keys: [author_id]
@@ -53,6 +59,7 @@ links:
   written_by:
     annotations:
       description: A book is written by one author.
+      synonyms: authored by, by
     from: Book
     to: Author
     reverse: wrote
@@ -69,9 +76,14 @@ actions:
   publish_book:
     annotations:
       description: Publish a draft book.
+      synonyms: release, go live
     target: Book
     parameters:
-      note: { type: string, optional: true }
+      note:
+        type: string
+        optional: true
+        annotations:
+          synonyms: comment, remark
     guard: target.status == "draft"
     authority: librarian
     audit: standard

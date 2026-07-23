@@ -65,6 +65,12 @@ SEMANTIC_CASES = {
         {"parameters": {"justification": {"type": "string"},
                         "sev": {"type": "enum", "values": ["low"], "optional": True}},
          "effects": [{"target.severity": "params.sev"}]}),
+    "synonym-duplicate": lambda d: d["entities"]["TradingDesk"]["annotations"].update(
+        {"synonyms": "desk, desk"}),
+    "synonym-collision": lambda d: d["entities"]["TradingDesk"]["annotations"].update(
+        {"synonyms": "FinancialModel"}),
+    "synonym-empty": lambda d: d["entities"]["TradingDesk"]["annotations"].update(
+        {"synonyms": "desk,,"}),
 }
 
 GUARD_CASES = {

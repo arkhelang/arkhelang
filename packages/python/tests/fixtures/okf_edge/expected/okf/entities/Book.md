@@ -10,6 +10,8 @@ type: Arkhe Entity
 
 A catalogued book. A café favourite among readers.
 
+Also known as: volume, tome.
+
 ## Keys
 
 - `book_id`

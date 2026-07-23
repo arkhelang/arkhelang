@@ -10,6 +10,8 @@ type: Arkhe Action
 
 Publish a draft book.
 
+Also known as: release, go live.
+
 ## Target
 
 [Book](../entities/Book.md)

@@ -28,6 +28,8 @@ import re
 
 import yaml
 
+from .. import model
+
 # The manifest file the okf emitter owns in an output directory: a sorted list
 # of the bundle-relative paths it wrote, so a later emit can prune only the
 # files it is responsible for and never touch anything else in the directory.
@@ -201,6 +203,12 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> dict[str, str]:
     def annotation(node: dict) -> str:
         return _fold((node.get("annotations") or {}).get("description"))
 
+    def synonyms_line(node: dict) -> str | None:
+        syns = model.parse_synonyms((node.get("annotations") or {}).get("synonyms"))
+        if not syns:
+            return None
+        return "Also known as: " + ", ".join(_cell(s) for s in syns) + "."
+
     bundle: dict[str, str] = {}
 
     def path_entity(name: str) -> str:
@@ -226,6 +234,9 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> dict[str, str]:
         body = [f"# {name}", ""]
         if desc:
             body += [desc, ""]
+        aka = synonyms_line(entity)
+        if aka:
+            body += [aka, ""]
 
         body += ["## Keys", ""]
         for key in entity["keys"]:
@@ -285,6 +296,9 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> dict[str, str]:
         body = [f"# {name}", ""]
         if desc:
             body += [desc, ""]
+        aka = synonyms_line(link)
+        if aka:
+            body += [aka, ""]
 
         body += ["## Endpoints", ""]
         body.append(f"- From: {_link(from_e, _rel(here, path_entity(from_e)))}")
@@ -320,6 +334,9 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> dict[str, str]:
         body = [f"# {name}", ""]
         if desc:
             body += [desc, ""]
+        aka = synonyms_line((module_doc.get("actions") or {}).get(name) or {})
+        if aka:
+            body += [aka, ""]
 
         body += ["## Target", "",
                  _link(target, _rel(here, path_entity(target))), ""]

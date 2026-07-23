@@ -92,6 +92,9 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> str:
         w("")
         w(f"def {fn}(world, {key_arg}{sig_params}, *, actor, approver=None):")
         doc = contract.get("description") or f"Attempt {name}."
+        synonyms = contract.get("synonyms")
+        if synonyms:
+            doc += "\n\nAlso known as: " + ", ".join(synonyms) + "."
         if params:
             doc += "\n\n" + "\n".join(
                 f"{p}: {_param_doc(decl)}" for p, decl in params.items())
@@ -114,7 +117,11 @@ def emit(module_doc: dict, contracts: dict[str, dict]) -> str:
         key_arg = contract["target"]["keys"][0]
         w("")
         w(f"def {fn}(world, {key_arg}, depth=2):")
-        w(f"    {'Read one %s with traversals materialized to depth.' % entity!r}")
+        doc = "Read one %s with traversals materialized to depth." % entity
+        synonyms = contract.get("synonyms")
+        if synonyms:
+            doc += "\n\nAlso known as: " + ", ".join(synonyms) + "."
+        w(f"    {doc!r}")
         w(f'    return world.neighbourhood("{entity}", {key_arg}, depth)')
         w("")
 

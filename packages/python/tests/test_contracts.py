@@ -86,6 +86,36 @@ def test_canonical_hash_ignores_formatting():
     assert _canonical_hash(doc) == _canonical_hash(refolded)
 
 
+def test_effect_carries_resolved_state_type(contracts):
+    """ADR 0008 item 3: an effect inlines its destination property's type."""
+    (eff,) = contracts["model_risk.retire_model"]["effects"]
+    assert eff["type"] == "state"
+    assert eff["values"] == [
+        "draft", "in_validation", "validated", "production", "retired"]
+
+
+def test_effect_on_scalar_destination_has_type_but_no_values(contracts):
+    effects = contracts["model_risk.record_validation_outcome"]["effects"]
+    scalar = next(e for e in effects if e["path"] == "target.assesses.last_validated")
+    assert scalar["type"] == "date" and "values" not in scalar
+
+
+def test_cross_link_effect_resolves_the_far_entitys_property_type(contracts):
+    effects = contracts["model_risk.record_validation_outcome"]["effects"]
+    far = next(e for e in effects if e["path"] == "target.assesses.status")
+    assert far["type"] == "state"
+    assert far["values"] == [
+        "draft", "in_validation", "validated", "production", "retired"]
+
+
+def test_enum_parameter_driven_effect_resolves_destination_type(contracts):
+    effects = contracts["model_risk.record_validation_outcome"]["effects"]
+    driven = next(e for e in effects if e["path"] == "target.outcome")
+    assert driven["value"] == "params.outcome" and driven["type"] == "state"
+    assert driven["values"] == [
+        "in_progress", "approved", "approved_with_conditions", "rejected"]
+
+
 def test_canonical_hash_tracks_content():
     from arkhelang.contracts import _canonical_hash
     doc = yaml.safe_load(MODULE.read_text())
